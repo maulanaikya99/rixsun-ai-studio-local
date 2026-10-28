@@ -1,0 +1,8 @@
+_cadangan*/
+__pycache__/
+.DS_Store
+otak.txt
+app/bg/
+app/dist/
+*.scpt
+ikon.png
