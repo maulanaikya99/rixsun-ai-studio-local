@@ -1,4 +1,7 @@
 {
   "saweria": "https://saweria.co/Rixsun",
-  "crypto": []
+  "crypto": [
+    {"nama": "Solana (SOL, USDC, USDT)", "jaringan": "Solana", "alamat": "8kk1eQ6GZp8vEx8aA7FQAwHygP8GaJ4ra3MdFFX1ehFb"},
+    {"nama": "Bitcoin (BTC)", "jaringan": "Bitcoin", "alamat": "bc1qd4vkrdr80ynyscn6kxupvtlfu4w6360qnmawj9"}
+  ]
 }
