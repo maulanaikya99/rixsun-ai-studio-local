@@ -17,11 +17,11 @@ An AI content studio that runs **100% on your Mac** (Apple Silicon): generate im
 ### Install
 1. Open the DMG and drag **RIXSUN AI STUDIO LOCAL** into **Applications**.
 2. First launch: **right-click → Open → Open**. The app is not signed by Apple. If macOS still blocks it, go to System Settings → Privacy & Security → **Open Anyway**.
-3. On the **Persiapan** (Setup) screen, choose a location and the packages, then click **Pasang** (Install). A Terminal window opens and downloads everything automatically (1–3 hours). If the connection drops, click Install again; downloads resume where they stopped.
+3. On the **Setup** screen, choose a location and the packages, then click **Install**. A Terminal window opens and downloads everything automatically (1–3 hours). If the connection drops, click Install again; downloads resume where they stopped.
 4. Content package only: VoiceStudio opens. Finish its setup wizard, then press Enter in the Terminal window.
-5. Done: click **Periksa Lagi** (Check Again).
+5. Done: click **Check Again**.
 
-> The app interface is currently in Indonesian. Menu guide: *Konten TikTok Otomatis* = automatic TikTok content, *Buat Gambar* = create image, *Gambar → Video* = image to video, *Perbesar Gambar* = upscale image, *Otak AI* = AI brain (LLM).
+> **Language:** the app follows your Mac's language (English or Indonesian). Change it anytime in **Settings** (gear icon, or ⌘,).
 
 ## Features
 
@@ -42,6 +42,10 @@ An AI content studio that runs **100% on your Mac** (Apple Silicon): generate im
 | DeepSeek via Genspark / API | Requires paid credits |
 
 If an online brain fails (quota used up, no internet), the studio automatically falls back to local Gemma.
+
+## Support the developer ❤️
+
+RIXSUN AI Studio Local is free. If it helps you, open **Support the Dev** in the app (Saweria and crypto). Starring this repo also helps a lot ⭐
 
 ## Model licenses
 

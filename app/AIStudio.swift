@@ -2,12 +2,16 @@
 // Build: bash build.sh  (menghasilkan /Applications/RIXSUN AI STUDIO LOCAL.app)
 import SwiftUI
 import AppKit
+import CoreImage
 import UniformTypeIdentifiers
 
 // Lokasi folder AI: ditulis installer (setup.sh) ke root.txt; di Mac pembuat bawaannya SSD "ikya MSI".
 let KONFIG = NSHomeDirectory() + "/Library/Application Support/RIXSUN AI Studio/root.txt"
 let BAWAAN = "/Volumes/ikya MSI/AI"
 let SETUP_SH = (Bundle.main.resourcePath ?? "") + "/payload/setup.sh"
+let REPO = "https://github.com/maulanaikya99/rixsun-ai-studio-local"
+let DONASI_URL = "https://raw.githubusercontent.com/maulanaikya99/rixsun-ai-studio-local/main/donasi.json"
+let VERSI = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
 
 func lokasiAI() -> String {
     let t = (try? String(contentsOfFile: KONFIG, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -19,27 +23,40 @@ var STUDIO_SH: String { STUDIO + "/studio.sh" }
 var PY: String { AI + "/ltx-2-mlx/.venv/bin/python" }
 var HASIL: String { (AI as NSString).deletingLastPathComponent + "/file AI studio" }
 
+// MARK: - bahasa
+
+/// "id" atau "en"; tersimpan di UserDefaults, bawaan mengikuti bahasa sistem.
+var BAHASA: String = {
+    if let b = UserDefaults.standard.string(forKey: "bahasa") { return b }
+    return (Locale.preferredLanguages.first ?? "en").hasPrefix("id") ? "id" : "en"
+}()
+func T(_ id: String, _ en: String) -> String { BAHASA == "en" ? en : id }
+
 // MARK: - data
 
 enum Alat: String, CaseIterable, Identifiable {
-    case konten, gambar, video, perbesar, otak
+    case konten, gambar, video, perbesar, otak, pengaturan, dukung
     var id: String { rawValue }
     var judul: String {
         switch self {
-        case .konten: return "Konten TikTok Otomatis"
-        case .gambar: return "Buat Gambar"
-        case .video: return "Gambar → Video"
-        case .perbesar: return "Perbesar Gambar"
-        case .otak: return "Otak AI"
+        case .konten: return T("Konten TikTok Otomatis", "Automatic TikTok Content")
+        case .gambar: return T("Buat Gambar", "Create Image")
+        case .video: return T("Gambar → Video", "Image → Video")
+        case .perbesar: return T("Perbesar Gambar", "Upscale Image")
+        case .otak: return T("Otak AI", "AI Brain")
+        case .pengaturan: return T("Pengaturan", "Settings")
+        case .dukung: return T("Dukung Developer", "Support the Dev")
         }
     }
     var sub: String {
         switch self {
-        case .konten: return "Topik → video TikTok siap upload"
-        case .gambar: return "Teks → gambar dengan FLUX"
-        case .video: return "Gerakkan gambar dengan LTX"
-        case .perbesar: return "2× lebih tajam (Real-ESRGAN)"
-        case .otak: return "Pilih LLM penulis naskah & prompt"
+        case .konten: return T("Topik → video TikTok siap upload", "Topic → ready-to-post TikTok video")
+        case .gambar: return T("Teks → gambar dengan FLUX", "Text → image with FLUX")
+        case .video: return T("Gerakkan gambar dengan LTX", "Animate an image with LTX")
+        case .perbesar: return T("2× lebih tajam (Real-ESRGAN)", "2× sharper (Real-ESRGAN)")
+        case .otak: return T("Pilih LLM penulis naskah & prompt", "Choose the LLM that writes scripts & prompts")
+        case .pengaturan: return T("Bahasa, lokasi, pembaruan", "Language, location, updates")
+        case .dukung: return T("Bantu RIXSUN AI Studio terus berkembang", "Help RIXSUN AI Studio keep growing")
         }
     }
     var ikon: String {
@@ -49,6 +66,8 @@ enum Alat: String, CaseIterable, Identifiable {
         case .video: return "film.stack.fill"
         case .perbesar: return "plus.magnifyingglass"
         case .otak: return "brain.head.profile.fill"
+        case .pengaturan: return "gearshape.fill"
+        case .dukung: return "heart.fill"
         }
     }
     var warna: [Color] {
@@ -58,22 +77,38 @@ enum Alat: String, CaseIterable, Identifiable {
         case .video: return [Color(red: 0.2, green: 0.55, blue: 1), Color(red: 0.3, green: 0.85, blue: 1)]
         case .perbesar: return [Color(red: 0.15, green: 0.75, blue: 0.55), Color(red: 0.55, green: 0.95, blue: 0.45)]
         case .otak: return [Color(red: 1, green: 0.7, blue: 0.2), Color(red: 1, green: 0.45, blue: 0.3)]
+        case .pengaturan: return [Color(red: 0.45, green: 0.5, blue: 0.62), Color(red: 0.62, green: 0.68, blue: 0.8)]
+        case .dukung: return [Color(red: 1, green: 0.3, blue: 0.45), Color(red: 1, green: 0.6, blue: 0.7)]
         }
     }
 }
 
 struct OtakInfo: Identifiable {
-    let id: String, nama: String, sub: String, ikon: String, warna: Color
+    let id: String, nama: String, ikon: String, warna: Color
+    var sub: String {
+        switch id {
+        case "gemma": return T("Lokal di Mac · gratis · offline", "Local on your Mac · free · offline")
+        case "claude": return T("Lewat Claude Code · cepat & teliti · kuota langganan Claude", "Via Claude Code · fast & careful · uses your Claude plan")
+        case "opus": return T("Lewat Claude Code · paling pintar · kuota lebih cepat habis", "Via Claude Code · smartest · uses your plan faster")
+        case "opencode": return T("Gratis dari OpenCode · ada batas harian", "Free from OpenCode · daily limit")
+        case "genspark": return T("Perlu kredit Genspark berbayar", "Needs paid Genspark credits")
+        default: return T("Perlu saldo akun DeepSeek", "Needs DeepSeek account balance")
+        }
+    }
 }
 
 let DAFTAR_OTAK = [
-    OtakInfo(id: "gemma", nama: "Gemma 3 12B", sub: "Lokal di Mac · gratis · offline", ikon: "cpu.fill", warna: .green),
-    OtakInfo(id: "claude", nama: "Claude Sonnet", sub: "Lewat Claude Code · cepat & teliti · kuota langganan Claude", ikon: "staroflife.fill", warna: Color(red: 0.85, green: 0.47, blue: 0.34)),
-    OtakInfo(id: "opus", nama: "Claude Opus", sub: "Lewat Claude Code · paling pintar · kuota lebih cepat habis", ikon: "crown.fill", warna: Color(red: 0.95, green: 0.75, blue: 0.35)),
-    OtakInfo(id: "opencode", nama: "DeepSeek V4.1 Flash", sub: "Gratis dari OpenCode · ada batas harian", ikon: "sparkles", warna: .cyan),
-    OtakInfo(id: "genspark", nama: "DeepSeek via Genspark", sub: "Perlu kredit Genspark berbayar", ikon: "globe.asia.australia.fill", warna: .purple),
-    OtakInfo(id: "deepseek", nama: "DeepSeek API", sub: "Perlu saldo akun DeepSeek", ikon: "key.fill", warna: .mint),
+    OtakInfo(id: "gemma", nama: "Gemma 3 12B", ikon: "cpu.fill", warna: .green),
+    OtakInfo(id: "claude", nama: "Claude Sonnet", ikon: "staroflife.fill", warna: Color(red: 0.85, green: 0.47, blue: 0.34)),
+    OtakInfo(id: "opus", nama: "Claude Opus", ikon: "crown.fill", warna: Color(red: 0.95, green: 0.75, blue: 0.35)),
+    OtakInfo(id: "opencode", nama: "DeepSeek V4.1 Flash", ikon: "sparkles", warna: .cyan),
+    OtakInfo(id: "genspark", nama: "DeepSeek via Genspark", ikon: "globe.asia.australia.fill", warna: .purple),
+    OtakInfo(id: "deepseek", nama: "DeepSeek API", ikon: "key.fill", warna: .mint),
 ]
+
+/// Daftar donasi: donasi.json di repo GitHub (bisa diubah tanpa rilis ulang), salinan bawaan di dalam app.
+struct Dompet: Codable, Hashable { var nama: String; var jaringan: String; var alamat: String }
+struct Donasi: Codable { var saweria: String = ""; var crypto: [Dompet] = [] }
 
 enum Uji: Equatable { case belum, jalan, ok(String), gagal(String) }
 
@@ -81,6 +116,9 @@ func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\
 
 final class Studio: ObservableObject {
     @Published var alat: Alat = .konten
+    @Published var bahasa: String = BAHASA {
+        didSet { BAHASA = bahasa; UserDefaults.standard.set(bahasa, forKey: "bahasa") }
+    }
     @Published var otak: String = "gemma"
     @Published var uji: [String: Uji] = [:]
     @Published var ssd = false
@@ -95,20 +133,29 @@ final class Studio: ObservableObject {
     @Published var vTeks = ""
     @Published var detik = 4
     @Published var files: [URL] = []
-    // persiapan (Mac baru)
+    // persiapan (Mac baru / pindah lokasi)
     @Published var pernahPasang = false
     @Published var pasangUlang = false
     @Published var lokasiPasang = NSHomeDirectory() + "/RIXSUN AI Studio"
     @Published var pVideo = true
     @Published var pKonten = true
+    // dukung & pembaruan
+    @Published var donasi = Donasi()
+    @Published var qrTerbuka: Set<String> = []
+    @Published var cekVersi: String? = nil
+    @Published var versiBaru: String? = nil
 
-    init() { segarkan() }
+    init() {
+        segarkan()
+        if let u = Bundle.main.url(forResource: "donasi", withExtension: "json"), let d = try? Data(contentsOf: u),
+           let v = try? JSONDecoder().decode(Donasi.self, from: d) { donasi = v }
+        muatDonasi()
+    }
 
     func segarkan() {
         AI = lokasiAI()
         ssd = FileManager.default.fileExists(atPath: STUDIO_SH)
         pernahPasang = FileManager.default.fileExists(atPath: KONFIG) || AI == BAWAAN && FileManager.default.fileExists(atPath: "/Volumes/ikya MSI")
-        if ssd { pasangUlang = false }
         let t = (try? String(contentsOfFile: STUDIO + "/otak.txt", encoding: .utf8))?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? "gemma"
         otak = DAFTAR_OTAK.contains { $0.id == t } ? t : "gemma"
@@ -123,55 +170,86 @@ final class Studio: ObservableObject {
     }
 
     func tes(_ id: String) {
-        if id == "gemma" { uji[id] = .ok("Siap dipakai, berjalan di Mac ini"); return }
+        if id == "gemma" { uji[id] = .ok(T("Siap dipakai, berjalan di Mac ini", "Ready, runs on this Mac")); return }
         uji[id] = .jalan
         DispatchQueue.global().async {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: PY)
             p.arguments = ["-I", STUDIO + "/otak.py", "tes", id]
             let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
-            var hasil = Uji.gagal("Tidak bisa menjalankan tes")
+            var hasil = Uji.gagal(T("Tidak bisa menjalankan tes", "Could not run the test"))
             if (try? p.run()) != nil {
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 p.waitUntilExit()
                 let s = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 let baris = s.components(separatedBy: "\n").last ?? s
                 if p.terminationStatus == 0 { hasil = .ok(baris) }
-                else if baris.contains("Free usage limit") { hasil = .gagal("Kuota gratis hari ini habis, sementara memakai Gemma") }
-                else if baris.contains("session limit") || baris.contains("usage limit") { hasil = .gagal("Batas sesi Claude tercapai, coba lagi setelah reset") }
-                else if baris.contains("Free-plan") { hasil = .gagal("Paket gratis Genspark ditolak, perlu kredit berbayar") }
-                else if baris.contains("Insufficient") || baris.contains("402") { hasil = .gagal("Saldo DeepSeek kosong") }
+                else if baris.contains("Free usage limit") { hasil = .gagal(T("Kuota gratis hari ini habis, sementara memakai Gemma", "Today's free quota is used up, using Gemma for now")) }
+                else if baris.contains("session limit") || baris.contains("usage limit") { hasil = .gagal(T("Batas sesi Claude tercapai, coba lagi setelah reset", "Claude session limit reached, try again after reset")) }
+                else if baris.contains("Free-plan") { hasil = .gagal(T("Paket gratis Genspark ditolak, perlu kredit berbayar", "Genspark free plan refused, paid credits needed")) }
+                else if baris.contains("Insufficient") || baris.contains("402") { hasil = .gagal(T("Saldo DeepSeek kosong", "DeepSeek balance is empty")) }
+                else if baris.contains("No such file") || baris.contains("not found") { hasil = .gagal(T("Belum terpasang di Mac ini", "Not installed on this Mac")) }
                 else { hasil = .gagal(baris.replacingOccurrences(of: "GAGAL: ", with: "")) }
             }
             DispatchQueue.main.async { self.uji[id] = hasil }
         }
     }
 
-    /// Jalankan studio.sh di Terminal (lewat file .command sementara, tanpa izin Apple Events).
     func jalankan(_ args: [String]) { terminal([STUDIO_SH] + args) }
 
     func pasang() {
         var paket = ["dasar"]
         if pVideo || pKonten { paket.append("video") }
         if pKonten { paket.append("konten") }
-        terminal([SETUP_SH, lokasiPasang] + paket, pesan: "Pemasangan berjalan di Terminal. Setelah selesai, klik Periksa Lagi")
+        terminal([SETUP_SH, lokasiPasang] + paket, pesan: T("Pemasangan berjalan di Terminal. Setelah selesai, klik Periksa Lagi",
+                                                           "Installing in Terminal. When it finishes, click Check Again"))
     }
 
     /// Jalankan skrip bash di Terminal (lewat file .command sementara, tanpa izin Apple Events).
-    func terminal(_ argv: [String], pesan: String = "Dimulai di Terminal, prosesnya bisa dipantau di sana") {
+    func terminal(_ argv: [String], pesan: String? = nil) {
         let cmd = "#!/bin/bash\nrm -f \"$0\"\nbash " + argv.map(q).joined(separator: " ") + "\n"
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("AI Studio \(Int(Date().timeIntervalSince1970)).command")
         do {
             try cmd.write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
             NSWorkspace.shared.open(url)
-            tampil(pesan)
-        } catch { tampil("Gagal memulai: \(error.localizedDescription)") }
+            tampil(pesan ?? T("Dimulai di Terminal, prosesnya bisa dipantau di sana", "Started in Terminal, you can follow the progress there"))
+        } catch { tampil(T("Gagal memulai: ", "Could not start: ") + error.localizedDescription) }
     }
 
     func tampil(_ s: String) {
         withAnimation(.spring) { pesan = s }
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) { withAnimation { if self.pesan == s { self.pesan = nil } } }
+    }
+
+    func salin(_ teks: String, _ pesan: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(teks, forType: .string)
+        tampil(pesan)
+    }
+
+    func muatDonasi() {
+        guard let u = URL(string: DONASI_URL) else { return }
+        URLSession.shared.dataTask(with: URLRequest(url: u, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)) { d, _, _ in
+            guard let d, let v = try? JSONDecoder().decode(Donasi.self, from: d) else { return }
+            DispatchQueue.main.async { self.donasi = v }
+        }.resume()
+    }
+
+    func cekPembaruan() {
+        cekVersi = T("Memeriksa…", "Checking…"); versiBaru = nil
+        guard let u = URL(string: "https://api.github.com/repos/maulanaikya99/rixsun-ai-studio-local/releases/latest") else { return }
+        URLSession.shared.dataTask(with: u) { d, _, _ in
+            let tag = (d.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] })?["tag_name"] as? String
+            DispatchQueue.main.async {
+                guard let tag else { self.cekVersi = T("Gagal memeriksa (tanpa internet?)", "Could not check (no internet?)"); return }
+                let baru = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+                if baru.compare(VERSI, options: .numeric) == .orderedDescending {
+                    self.versiBaru = baru
+                    self.cekVersi = T("Versi baru \(baru) tersedia", "New version \(baru) available")
+                } else { self.cekVersi = T("Sudah versi terbaru", "You're up to date") }
+            }
+        }.resume()
     }
 }
 
@@ -255,6 +333,19 @@ struct TombolMulai: View {
     }
 }
 
+/// Tombol berwarna kecil (aksi sekunder: buka link, salin, dll.)
+struct TombolPil: View {
+    let label: String, ikon: String, warna: [Color], aksi: () -> Void
+    var body: some View {
+        Button(action: aksi) {
+            Label(label, systemImage: ikon).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                .padding(.horizontal, 16).padding(.vertical, 9)
+                .background(Capsule().fill(LinearGradient(colors: warna, startPoint: .leading, endPoint: .trailing)))
+                .contentShape(Capsule())
+        }.buttonStyle(.plain)
+    }
+}
+
 func pilihFile(banyak: Bool) -> [URL] {
     let p = NSOpenPanel()
     p.allowedContentTypes = [.image]; p.allowsMultipleSelection = banyak; p.canChooseDirectories = false
@@ -274,31 +365,46 @@ struct Thumb: View {
     }
 }
 
+func kodeQR(_ teks: String) -> NSImage? {
+    guard let f = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+    f.setValue(Data(teks.utf8), forKey: "inputMessage")
+    f.setValue("M", forKey: "inputCorrectionLevel")
+    guard let ci = f.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
+          let cg = CIContext().createCGImage(ci, from: ci.extent) else { return nil }
+    return NSImage(cgImage: cg, size: NSSize(width: ci.extent.width, height: ci.extent.height))
+}
+
 // MARK: - halaman
 
 struct HalKonten: View {
     @EnvironmentObject var s: Studio
     var body: some View {
         VStack(spacing: 16) {
-            Kartu(judul: "Topik") {
-                KotakTeks(teks: $s.topik, contoh: "Contoh: sejarah HP, asal-usul kopi, kenapa langit biru")
+            Kartu(judul: T("Topik", "Topic")) {
+                KotakTeks(teks: $s.topik, contoh: T("Contoh: sejarah HP, asal-usul kopi, kenapa langit biru", "Example: history of phones, origin of coffee, why the sky is blue"))
             }
-            Kartu(judul: "Mode visual") {
+            Kartu(judul: T("Mode visual", "Visual mode")) {
                 HStack(spacing: 12) {
-                    Pilihan(judul: "Video AI", sub: "Gerak nyata tiap adegan · ±2 jam", ikon: "wand.and.stars", aktif: !s.cepat, warna: .pink) { s.cepat = false }
-                    Pilihan(judul: "Cepat", sub: "Gambar + zoom pelan · ±30 menit", ikon: "hare.fill", aktif: s.cepat, warna: .orange) { s.cepat = true }
+                    Pilihan(judul: T("Video AI", "AI video"), sub: T("Gerak nyata tiap adegan · ±2 jam", "Real motion in every scene · ~2 hours"), ikon: "wand.and.stars", aktif: !s.cepat, warna: .pink) { s.cepat = false }
+                    Pilihan(judul: T("Cepat", "Fast"), sub: T("Gambar + zoom pelan · ±30 menit", "Images + slow zoom · ~30 minutes"), ikon: "hare.fill", aktif: s.cepat, warna: .orange) { s.cepat = true }
                 }
             }
-            Kartu(judul: "Alur kerja") {
+            Kartu(judul: T("Alur kerja", "Workflow")) {
                 HStack(spacing: 0) {
-                    langkah("text.quote", "Naskah", s.otakAktif.nama)
-                    panah; langkah("waveform", "Suara", "OmniVoice")
-                    panah; langkah("photo", "Gambar", "FLUX")
+                    langkah("text.quote", T("Naskah", "Script"), s.otakAktif.nama)
+                    panah; langkah("waveform", T("Suara", "Voice"), "OmniVoice")
+                    panah; langkah("photo", T("Gambar", "Images"), "FLUX")
                     panah; langkah("film", "Video", s.cepat ? "zoom" : "LTX-2.3")
-                    panah; langkah("square.stack.3d.up.fill", "Rakit", "MP4")
+                    panah; langkah("square.stack.3d.up.fill", T("Rakit", "Assemble"), "MP4")
                 }
             }
-            TombolMulai(label: "Buat Konten", info: s.cepat ? "±30 menit" : "±2 jam · tutup browser agar lebih cepat",
+            if BAHASA == "en" {
+                Kartu {
+                    Label("Narration and subtitles are generated in Indonesian (for Indonesian TikTok audiences).", systemImage: "info.circle")
+                        .font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+                }
+            }
+            TombolMulai(label: T("Buat Konten", "Create Content"), info: s.cepat ? T("±30 menit", "~30 minutes") : T("±2 jam · tutup browser agar lebih cepat", "~2 hours · close your browser for speed"),
                         warna: Alat.konten.warna, aktif: !s.topik.trimmingCharacters(in: .whitespaces).isEmpty) {
                 s.jalankan(["konten", s.cepat ? "cepat" : "ai", s.topik.trimmingCharacters(in: .whitespacesAndNewlines)])
             }
@@ -318,17 +424,17 @@ struct HalGambar: View {
     @EnvironmentObject var s: Studio
     var body: some View {
         VStack(spacing: 16) {
-            Kartu(judul: "Deskripsi (boleh bahasa Indonesia)") {
-                KotakTeks(teks: $s.gTeks, contoh: "Contoh: kucing oranye pakai baju astronot duduk di bulan, gaya kartun 3D")
+            Kartu(judul: T("Deskripsi (boleh bahasa Indonesia)", "Description (any language)")) {
+                KotakTeks(teks: $s.gTeks, contoh: T("Contoh: kucing oranye pakai baju astronot duduk di bulan, gaya kartun 3D", "Example: an orange cat in a spacesuit sitting on the moon, 3D cartoon style"))
             }
-            Kartu(judul: "Bentuk") {
+            Kartu(judul: T("Bentuk", "Shape")) {
                 HStack(spacing: 12) {
-                    Pilihan(judul: "Tegak 9:16", sub: "TikTok · Reels", ikon: "rectangle.portrait", aktif: s.arah == "tegak", warna: .purple) { s.arah = "tegak" }
-                    Pilihan(judul: "Mendatar 16:9", sub: "YouTube", ikon: "rectangle", aktif: s.arah == "mendatar", warna: .purple) { s.arah = "mendatar" }
-                    Pilihan(judul: "Kotak 1:1", sub: "Instagram", ikon: "square", aktif: s.arah == "kotak", warna: .purple) { s.arah = "kotak" }
+                    Pilihan(judul: T("Tegak 9:16", "Portrait 9:16"), sub: "TikTok · Reels", ikon: "rectangle.portrait", aktif: s.arah == "tegak", warna: .purple) { s.arah = "tegak" }
+                    Pilihan(judul: T("Mendatar 16:9", "Landscape 16:9"), sub: "YouTube", ikon: "rectangle", aktif: s.arah == "mendatar", warna: .purple) { s.arah = "mendatar" }
+                    Pilihan(judul: T("Kotak 1:1", "Square 1:1"), sub: "Instagram", ikon: "square", aktif: s.arah == "kotak", warna: .purple) { s.arah = "kotak" }
                 }
             }
-            Kartu(judul: "Jumlah variasi") {
+            Kartu(judul: T("Jumlah variasi", "Number of variations")) {
                 HStack(spacing: 10) {
                     ForEach(1...4, id: \.self) { n in
                         Button { s.jumlah = n } label: {
@@ -341,7 +447,7 @@ struct HalGambar: View {
                     Spacer()
                 }
             }
-            TombolMulai(label: "Buat Gambar", info: "±\(s.jumlah * 5 / 2) menit (±2,5 mnt per gambar)", warna: Alat.gambar.warna,
+            TombolMulai(label: T("Buat Gambar", "Create Image"), info: T("±\(s.jumlah * 5 / 2) menit (±2,5 mnt per gambar)", "~\(s.jumlah * 5 / 2) min (~2.5 min per image)"), warna: Alat.gambar.warna,
                         aktif: !s.gTeks.trimmingCharacters(in: .whitespaces).isEmpty) {
                 s.jalankan(["gambar", s.arah, "\(s.jumlah)", s.gTeks.trimmingCharacters(in: .whitespacesAndNewlines)])
             }
@@ -353,19 +459,19 @@ struct HalVideo: View {
     @EnvironmentObject var s: Studio
     var body: some View {
         VStack(spacing: 16) {
-            Kartu(judul: "Gambar") {
+            Kartu(judul: T("Gambar", "Image")) {
                 if let g = s.vGambar {
                     HStack(spacing: 14) {
                         Thumb(url: g)
                         Text(g.lastPathComponent).font(.system(size: 13, weight: .medium)).foregroundStyle(.white).lineLimit(2)
                         Spacer()
-                        Button("Ganti…") { if let f = pilihFile(banyak: false).first { s.vGambar = f } }
+                        Button(T("Ganti…", "Change…")) { if let f = pilihFile(banyak: false).first { s.vGambar = f } }
                     }
                 } else {
                     Button { s.vGambar = pilihFile(banyak: false).first } label: {
                         VStack(spacing: 8) {
                             Image(systemName: "photo.badge.plus").font(.system(size: 28)).foregroundStyle(.white.opacity(0.6))
-                            Text("Klik untuk memilih gambar").foregroundStyle(.white.opacity(0.7))
+                            Text(T("Klik untuk memilih gambar", "Click to choose an image")).foregroundStyle(.white.opacity(0.7))
                         }
                         .frame(maxWidth: .infinity, minHeight: 110)
                         .background(RoundedRectangle(cornerRadius: 14).strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6])).foregroundStyle(.white.opacity(0.25)))
@@ -373,17 +479,17 @@ struct HalVideo: View {
                     }.buttonStyle(.plain)
                 }
             }
-            Kartu(judul: "Apa yang bergerak?") {
-                KotakTeks(teks: $s.vTeks, contoh: "Contoh: kucingnya melambaikan tangan, bintang berkelip, kamera pelan mendekat")
+            Kartu(judul: T("Apa yang bergerak?", "What moves?")) {
+                KotakTeks(teks: $s.vTeks, contoh: T("Contoh: kucingnya melambaikan tangan, bintang berkelip, kamera pelan mendekat", "Example: the cat waves, stars twinkle, the camera slowly moves in"))
             }
-            Kartu(judul: "Durasi") {
+            Kartu(judul: T("Durasi", "Duration")) {
                 HStack(spacing: 12) {
                     ForEach([3, 4, 5], id: \.self) { d in
-                        Pilihan(judul: "\(d) detik", sub: "±\(d * 2 + 2) menit", ikon: "timer", aktif: s.detik == d, warna: .cyan) { s.detik = d }
+                        Pilihan(judul: T("\(d) detik", "\(d) seconds"), sub: T("±\(d * 2 + 2) menit", "~\(d * 2 + 2) minutes"), ikon: "timer", aktif: s.detik == d, warna: .cyan) { s.detik = d }
                     }
                 }
             }
-            TombolMulai(label: "Buat Video", info: "±\(s.detik * 2 + 2) menit", warna: Alat.video.warna,
+            TombolMulai(label: T("Buat Video", "Create Video"), info: T("±\(s.detik * 2 + 2) menit", "~\(s.detik * 2 + 2) minutes"), warna: Alat.video.warna,
                         aktif: s.vGambar != nil && !s.vTeks.trimmingCharacters(in: .whitespaces).isEmpty) {
                 if let g = s.vGambar { s.jalankan(["video", g.path, "\(s.detik)", s.vTeks.trimmingCharacters(in: .whitespacesAndNewlines)]) }
             }
@@ -395,12 +501,12 @@ struct HalPerbesar: View {
     @EnvironmentObject var s: Studio
     var body: some View {
         VStack(spacing: 16) {
-            Kartu(judul: "Gambar (boleh lebih dari satu)") {
+            Kartu(judul: T("Gambar (boleh lebih dari satu)", "Images (one or more)")) {
                 if s.files.isEmpty {
                     Button { s.files = pilihFile(banyak: true) } label: {
                         VStack(spacing: 8) {
                             Image(systemName: "photo.on.rectangle.angled").font(.system(size: 30)).foregroundStyle(.white.opacity(0.6))
-                            Text("Klik untuk memilih gambar").foregroundStyle(.white.opacity(0.7))
+                            Text(T("Klik untuk memilih gambar", "Click to choose images")).foregroundStyle(.white.opacity(0.7))
                         }
                         .frame(maxWidth: .infinity, minHeight: 130)
                         .background(RoundedRectangle(cornerRadius: 14).strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6])).foregroundStyle(.white.opacity(0.25)))
@@ -411,17 +517,17 @@ struct HalPerbesar: View {
                         HStack(spacing: 10) { ForEach(s.files, id: \.self) { Thumb(url: $0) } }
                     }
                     HStack {
-                        Text("\(s.files.count) gambar dipilih").font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+                        Text(T("\(s.files.count) gambar dipilih", "\(s.files.count) image(s) selected")).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
                         Spacer()
-                        Button("Ganti…") { let f = pilihFile(banyak: true); if !f.isEmpty { s.files = f } }
+                        Button(T("Ganti…", "Change…")) { let f = pilihFile(banyak: true); if !f.isEmpty { s.files = f } }
                     }
                 }
             }
             Kartu {
-                Label("Hasil disimpan di sebelah file asli dengan akhiran _2x.png", systemImage: "info.circle")
+                Label(T("Hasil disimpan di sebelah file asli dengan akhiran _2x.png", "Results are saved next to the original with the suffix _2x.png"), systemImage: "info.circle")
                     .font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
             }
-            TombolMulai(label: "Perbesar", info: "±7 detik per gambar", warna: Alat.perbesar.warna, aktif: !s.files.isEmpty) {
+            TombolMulai(label: T("Perbesar", "Upscale"), info: T("±7 detik per gambar", "~7 seconds per image"), warna: Alat.perbesar.warna, aktif: !s.files.isEmpty) {
                 s.jalankan(["perbesar"] + s.files.map(\.path))
             }
         }
@@ -440,44 +546,46 @@ struct HalPersiapan: View {
     }
     var body: some View {
         VStack(spacing: 16) {
-            Kartu(judul: "Selamat datang") {
-                Text("Mac ini belum punya mesin AI Studio. Pilih lokasi dan paket, lalu klik Pasang. Semua diunduh otomatis dari sumber resminya (HuggingFace, GitHub) dan bisa dilanjutkan bila internet terputus.")
+            Kartu(judul: T("Selamat datang", "Welcome")) {
+                Text(T("Mac ini belum punya mesin AI Studio. Pilih lokasi dan paket, lalu klik Pasang. Semua diunduh otomatis dari sumber resminya (HuggingFace, GitHub) dan bisa dilanjutkan bila internet terputus.",
+                       "This Mac doesn't have the AI Studio engines yet. Choose a location and packages, then click Install. Everything is downloaded automatically from the official sources (HuggingFace, GitHub) and resumes if the connection drops."))
                     .font(.system(size: 13)).foregroundStyle(.white.opacity(0.75))
                 HStack(spacing: 14) {
-                    syarat("cpu", "Chip Apple", true)
+                    syarat("cpu", T("Chip Apple", "Apple silicon"), true)
                     syarat("memorychip", "RAM \(ram) GB", ram >= 16)
-                    syarat("internal.drive", "Kosong \(kosong) GB", kosong >= butuh)
+                    syarat("internal.drive", T("Kosong \(kosong) GB", "\(kosong) GB free"), kosong >= butuh)
                 }
             }
-            Kartu(judul: "Lokasi pasang") {
+            Kartu(judul: T("Lokasi pasang", "Install location")) {
                 HStack(spacing: 12) {
                     Image(systemName: "folder.fill").font(.system(size: 22)).foregroundStyle(.orange)
                     Text(s.lokasiPasang).font(.system(size: 13, design: .monospaced)).foregroundStyle(.white).lineLimit(2)
                     Spacer()
-                    Button("Pilih Folder…") {
+                    Button(T("Pilih Folder…", "Choose Folder…")) {
                         let p = NSOpenPanel()
                         p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true
-                        p.prompt = "Pilih"; p.message = "Pilih folder atau SSD eksternal untuk AI Studio"
+                        p.prompt = T("Pilih", "Choose"); p.message = T("Pilih folder atau SSD eksternal untuk AI Studio", "Choose a folder or external SSD for AI Studio")
                         if p.runModal() == .OK, let u = p.url { s.lokasiPasang = u.path }
                     }
                 }
-                Text("Tips: pilih SSD eksternal agar disk Mac tidak penuh.").font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
+                Text(T("Tips: pilih SSD eksternal agar disk Mac tidak penuh.", "Tip: choose an external SSD so your Mac's disk doesn't fill up."))
+                    .font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
             }
-            Kartu(judul: "Paket") {
+            Kartu(judul: T("Paket", "Packages")) {
                 VStack(spacing: 10) {
-                    paket("Dasar", "Buat Gambar, Perbesar, otak Gemma lokal · ±20 GB", "paintpalette.fill", true, wajib: true) {}
-                    paket("Video", "Gambar → Video dengan LTX-2.3 · +20 GB", "film.stack.fill", s.pVideo || s.pKonten, wajib: s.pKonten) { if !s.pKonten { s.pVideo.toggle() } }
-                    paket("Konten TikTok", "Narator VoiceStudio + Whisper · +12 GB (termasuk Video)", "play.rectangle.on.rectangle.fill", s.pKonten, wajib: false) {
+                    paket(T("Dasar", "Basic"), T("Buat Gambar, Perbesar, otak Gemma lokal · ±20 GB", "Create Image, Upscale, local Gemma brain · ~20 GB"), "paintpalette.fill", true, wajib: true) {}
+                    paket("Video", T("Gambar → Video dengan LTX-2.3 · +20 GB", "Image → Video with LTX-2.3 · +20 GB"), "film.stack.fill", s.pVideo || s.pKonten, wajib: s.pKonten) { if !s.pKonten { s.pVideo.toggle() } }
+                    paket(T("Konten TikTok", "TikTok Content"), T("Narator VoiceStudio + Whisper · +12 GB (termasuk Video)", "VoiceStudio narrator + Whisper · +12 GB (includes Video)"), "play.rectangle.on.rectangle.fill", s.pKonten, wajib: false) {
                         s.pKonten.toggle(); if s.pKonten { s.pVideo = true }
                     }
                 }
             }
-            TombolMulai(label: "Pasang", info: "Unduhan ±\(butuh) GB · bisa 1-3 jam tergantung internet", warna: [.orange, .pink],
+            TombolMulai(label: T("Pasang", "Install"), info: T("Unduhan ±\(butuh) GB · bisa 1-3 jam tergantung internet", "~\(butuh) GB download · 1–3 hours depending on your internet"), warna: [.orange, .pink],
                         aktif: kosong >= butuh) { s.pasang() }
             HStack {
                 Spacer()
-                Button("Periksa Lagi") { s.segarkan() }
-                if s.pernahPasang { Button("Batal") { s.pasangUlang = false } }
+                Button(T("Periksa Lagi", "Check Again")) { s.segarkan(); if s.ssd { s.pasangUlang = false } }
+                if s.pernahPasang { Button(T("Batal", "Cancel")) { s.pasangUlang = false } }
             }
         }
     }
@@ -494,7 +602,7 @@ struct HalPersiapan: View {
                     Text(d).font(.system(size: 11)).foregroundStyle(.white.opacity(0.55))
                 }
                 Spacer()
-                if wajib { Text("wajib").font(.system(size: 10, weight: .semibold)).foregroundStyle(.orange.opacity(0.8)) }
+                if wajib { Text(T("wajib", "required")).font(.system(size: 10, weight: .semibold)).foregroundStyle(.orange.opacity(0.8)) }
                 Image(systemName: aktif ? (wajib ? "lock.square.fill" : "checkmark.square.fill") : "square").font(.system(size: 20))
                     .foregroundStyle(aktif ? .orange : .white.opacity(0.3))
             }
@@ -533,7 +641,8 @@ struct HalOtak: View {
                 }.buttonStyle(.plain)
             }
             Kartu {
-                Label("Otak dipakai untuk menerjemahkan deskripsi jadi prompt dan menulis naskah Konten Otomatis. Bila otak online gagal (kuota habis, tanpa internet), AI Studio otomatis kembali ke Gemma lokal.",
+                Label(T("Otak dipakai untuk menerjemahkan deskripsi jadi prompt dan menulis naskah Konten Otomatis. Bila otak online gagal (kuota habis, tanpa internet), AI Studio otomatis kembali ke Gemma lokal.",
+                        "The brain turns your descriptions into prompts and writes the automatic content scripts. If an online brain fails (quota used up, no internet), AI Studio falls back to local Gemma."),
                       systemImage: "info.circle").font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
             }
         }
@@ -542,15 +651,133 @@ struct HalOtak: View {
     @ViewBuilder func status(_ id: String) -> some View {
         HStack(spacing: 8) {
             switch s.uji[id] ?? .belum {
-            case .belum: Text("Belum diuji").foregroundStyle(.white.opacity(0.4))
-            case .jalan: ProgressView().controlSize(.small); Text("Menguji koneksi…").foregroundStyle(.white.opacity(0.6))
+            case .belum: Text(T("Belum diuji", "Not tested")).foregroundStyle(.white.opacity(0.4))
+            case .jalan: ProgressView().controlSize(.small); Text(T("Menguji koneksi…", "Testing connection…")).foregroundStyle(.white.opacity(0.6))
             case .ok(let m): Image(systemName: "checkmark.seal.fill").foregroundStyle(.green); Text(m).foregroundStyle(.green.opacity(0.9)).lineLimit(1)
             case .gagal(let m): Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow); Text(m).foregroundStyle(.yellow.opacity(0.9)).lineLimit(2)
             }
             if s.uji[id] != .jalan {
-                Button("Uji") { s.tes(id) }.controlSize(.small)
+                Button(T("Uji", "Test")) { s.tes(id) }.controlSize(.small)
             }
         }.font(.system(size: 11)).padding(.top, 2)
+    }
+}
+
+struct HalPengaturan: View {
+    @EnvironmentObject var s: Studio
+    var body: some View {
+        VStack(spacing: 16) {
+            Kartu(judul: T("Bahasa", "Language")) {
+                HStack(spacing: 12) {
+                    Pilihan(judul: "Bahasa Indonesia", sub: "Indonesian", ikon: "character.bubble.fill", aktif: s.bahasa == "id", warna: .red) { s.bahasa = "id" }
+                    Pilihan(judul: "English", sub: "Bahasa Inggris", ikon: "textformat", aktif: s.bahasa == "en", warna: .blue) { s.bahasa = "en" }
+                }
+            }
+            Kartu(judul: T("Lokasi mesin AI", "AI engine location")) {
+                baris("cpu", AI)
+                HStack {
+                    Button(T("Buka di Finder", "Show in Finder")) { NSWorkspace.shared.open(URL(fileURLWithPath: AI)) }
+                    Button(T("Pasang ulang / pindah lokasi…", "Reinstall / move…")) { s.pasangUlang = true }
+                }
+            }
+            Kartu(judul: T("Folder hasil", "Output folder")) {
+                baris("folder.fill", HASIL)
+                Button(T("Buka di Finder", "Show in Finder")) { NSWorkspace.shared.open(URL(fileURLWithPath: HASIL)) }
+            }
+            Kartu(judul: T("Tentang", "About")) {
+                HStack(spacing: 12) {
+                    Text("RIXSUN AI Studio Local").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
+                    Text("v\(VERSI)").font(.system(size: 12, design: .monospaced)).foregroundStyle(.white.opacity(0.5))
+                    Spacer()
+                }
+                HStack(spacing: 10) {
+                    Button(T("Cek pembaruan", "Check for updates")) { s.cekPembaruan() }
+                    if let v = s.cekVersi {
+                        Text(v).font(.system(size: 12)).foregroundStyle(s.versiBaru != nil ? .green : .white.opacity(0.6))
+                    }
+                    if s.versiBaru != nil {
+                        Button(T("Unduh", "Download")) { NSWorkspace.shared.open(URL(string: REPO + "/releases/latest")!) }
+                    }
+                    Spacer()
+                    Button("GitHub") { NSWorkspace.shared.open(URL(string: REPO)!) }
+                }
+            }
+        }
+    }
+    func baris(_ i: String, _ t: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: i).foregroundStyle(.orange)
+            Text(t).font(.system(size: 12, design: .monospaced)).foregroundStyle(.white).lineLimit(2).textSelection(.enabled)
+        }
+    }
+}
+
+struct HalDukung: View {
+    @EnvironmentObject var s: Studio
+    var body: some View {
+        VStack(spacing: 16) {
+            Kartu {
+                HStack(alignment: .top, spacing: 14) {
+                    Text("☕️").font(.system(size: 34))
+                    Text(T("RIXSUN AI Studio Local gratis dan semua AI-nya berjalan di Mac Anda sendiri. Kalau aplikasi ini membantu, dukungan Anda membantu developer menambah fitur baru dan merawatnya. Terima kasih! 🙏",
+                           "RIXSUN AI Studio Local is free and all of its AI runs on your own Mac. If it helps you, your support lets the developer keep adding features and maintaining it. Thank you! 🙏"))
+                        .font(.system(size: 13)).foregroundStyle(.white.opacity(0.8))
+                }
+            }
+            Kartu(judul: "Saweria") {
+                Text(T("QRIS, GoPay, OVO, DANA, ShopeePay, transfer bank", "QRIS, GoPay, OVO, DANA, ShopeePay, bank transfer (Indonesia)"))
+                    .font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+                if let u = URL(string: s.donasi.saweria), !s.donasi.saweria.isEmpty {
+                    TombolPil(label: T("Donasi lewat Saweria", "Donate via Saweria"), ikon: "heart.fill", warna: [Color(red: 0.95, green: 0.6, blue: 0.1), Color(red: 1, green: 0.4, blue: 0.3)]) {
+                        NSWorkspace.shared.open(u)
+                    }
+                } else { segera }
+            }
+            Kartu(judul: T("Crypto", "Crypto")) {
+                if s.donasi.crypto.isEmpty { segera }
+                ForEach(s.donasi.crypto, id: \.self) { w in dompet(w) }
+                if !s.donasi.crypto.isEmpty {
+                    Label(T("Kirim hanya lewat jaringan yang tertulis. Salah jaringan = dana hilang.", "Only send on the network shown. Wrong network = lost funds."), systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11)).foregroundStyle(.yellow.opacity(0.85))
+                }
+            }
+            Kartu(judul: T("Cara lain mendukung", "Other ways to help")) {
+                HStack(spacing: 10) {
+                    TombolPil(label: T("Beri ⭐ di GitHub", "Star on GitHub"), ikon: "star.fill", warna: [Color(red: 0.3, green: 0.3, blue: 0.4), Color(red: 0.45, green: 0.45, blue: 0.6)]) {
+                        NSWorkspace.shared.open(URL(string: REPO)!)
+                    }
+                    TombolPil(label: T("Salin link untuk dibagikan", "Copy link to share"), ikon: "square.and.arrow.up", warna: [Color(red: 0.2, green: 0.5, blue: 0.9), Color(red: 0.3, green: 0.75, blue: 1)]) {
+                        s.salin(REPO, T("Link disalin", "Link copied"))
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+    var segera: some View {
+        Label(T("Segera hadir", "Coming soon"), systemImage: "clock").font(.system(size: 12)).foregroundStyle(.white.opacity(0.45))
+    }
+    func dompet(_ w: Dompet) -> some View {
+        let buka = s.qrTerbuka.contains(w.alamat)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(w.nama).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                Text(w.jaringan).font(.system(size: 10, weight: .bold)).foregroundStyle(.black)
+                    .padding(.horizontal, 7).padding(.vertical, 2).background(Capsule().fill(.yellow.opacity(0.85)))
+                Spacer()
+                Button(T("Salin", "Copy")) { s.salin(w.alamat, T("Alamat \(w.nama) disalin", "\(w.nama) address copied")) }
+                Button(buka ? T("Tutup QR", "Hide QR") : "QR") {
+                    if buka { s.qrTerbuka.remove(w.alamat) } else { s.qrTerbuka.insert(w.alamat) }
+                }
+            }
+            Text(w.alamat).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(.white.opacity(0.8)).textSelection(.enabled).lineLimit(2)
+            if buka, let img = kodeQR(w.alamat) {
+                Image(nsImage: img).interpolation(.none).resizable().frame(width: 150, height: 150)
+                    .padding(8).background(RoundedRectangle(cornerRadius: 10).fill(.white))
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.05)))
     }
 }
 
@@ -591,6 +818,9 @@ struct Latar: View {
 
 struct Utama: View {
     @EnvironmentObject var s: Studio
+    /// halaman yang tidak butuh mesin AI terpasang
+    var bebas: Bool { s.alat == .dukung || (s.alat == .pengaturan && !s.pasangUlang) }
+    var persiapan: Bool { s.pasangUlang || (!s.ssd && !s.pernahPasang) }
     var body: some View {
         HStack(spacing: 0) {
             samping.frame(width: 280).background(Color.black.opacity(0.45).background(.ultraThinMaterial))
@@ -599,38 +829,45 @@ struct Utama: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         HStack(spacing: 14) {
-                            Ikon(nama: s.ssd ? s.alat.ikon : "arrow.down.circle.fill", warna: s.ssd ? s.alat.warna : [.orange, .pink], ukuran: 52)
+                            let siap = bebas || (!persiapan && s.ssd)
+                            Ikon(nama: siap ? s.alat.ikon : "arrow.down.circle.fill", warna: siap ? s.alat.warna : [.orange, .pink], ukuran: 52)
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(s.ssd ? s.alat.judul : "Persiapan").font(.system(size: 24, weight: .bold)).foregroundStyle(.white)
-                                Text(s.ssd ? s.alat.sub : "Pasang mesin AI di Mac ini (sekali saja)").font(.system(size: 13)).foregroundStyle(.white.opacity(0.55))
+                                Text(siap ? s.alat.judul : T("Persiapan", "Setup")).font(.system(size: 24, weight: .bold)).foregroundStyle(.white)
+                                Text(siap ? s.alat.sub : T("Pasang mesin AI di Mac ini (sekali saja)", "Install the AI engines on this Mac (one time)"))
+                                    .font(.system(size: 13)).foregroundStyle(.white.opacity(0.55))
                             }
                         }
-                        if !s.ssd && s.pernahPasang && !s.pasangUlang {
+                        if s.alat == .pengaturan && !s.pasangUlang {
+                            HalPengaturan()
+                        } else if s.alat == .dukung {
+                            HalDukung()
+                        } else if persiapan {
+                            HalPersiapan()
+                        } else if !s.ssd {
                             Kartu {
-                                Label("Folder AI Studio tidak ditemukan:\n\(AI)\nBila terpasang di SSD, colokkan dulu lalu klik Periksa Lagi.", systemImage: "externaldrive.badge.xmark")
+                                Label(T("Folder AI Studio tidak ditemukan:\n\(AI)\nBila terpasang di SSD, colokkan dulu lalu klik Periksa Lagi.",
+                                        "AI Studio folder not found:\n\(AI)\nIf it's on an external SSD, plug it in and click Check Again."), systemImage: "externaldrive.badge.xmark")
                                     .foregroundStyle(.yellow)
                                 HStack {
-                                    Button("Periksa Lagi") { s.segarkan() }
-                                    Button("Pasang di lokasi lain…") { s.pasangUlang = true }
+                                    Button(T("Periksa Lagi", "Check Again")) { s.segarkan() }
+                                    Button(T("Pasang di lokasi lain…", "Install somewhere else…")) { s.pasangUlang = true }
                                 }
                             }
-                        } else if !s.ssd {
-                            HalPersiapan()
                         } else {
-                        Group {
-                            switch s.alat {
-                            case .konten: HalKonten()
-                            case .gambar: HalGambar()
-                            case .video: HalVideo()
-                            case .perbesar: HalPerbesar()
-                            case .otak: HalOtak()
-                            }
-                        }.id(s.alat)
+                            Group {
+                                switch s.alat {
+                                case .konten: HalKonten()
+                                case .gambar: HalGambar()
+                                case .video: HalVideo()
+                                case .perbesar: HalPerbesar()
+                                default: HalOtak()
+                                }
+                            }.id(s.alat)
                         }
                     }.padding(28)
                 }
                 if let p = s.pesan {
-                    Label(p, systemImage: "terminal.fill").font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                    Label(p, systemImage: "checkmark.circle.fill").font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
                         .padding(.horizontal, 18).padding(.vertical, 10)
                         .background(Capsule().fill(.green.opacity(0.85))).padding(.bottom, 18)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -649,18 +886,29 @@ struct Utama: View {
                 Text("RIXSUN").font(.system(size: 26, weight: .black)).tracking(2).foregroundStyle(
                     LinearGradient(colors: [.pink, .orange], startPoint: .leading, endPoint: .trailing))
                 Text("AI STUDIO LOCAL").font(.system(size: 13, weight: .heavy)).tracking(1.5).foregroundStyle(.white.opacity(0.9))
-                Text("100% di Mac ini").font(.system(size: 10, weight: .semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.45))
+                Text(T("100% di Mac ini", "100% on this Mac")).font(.system(size: 10, weight: .semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.45))
             }.padding(.top, 34).padding(.bottom, 18).padding(.horizontal, 8)
 
             ForEach([Alat.konten, .gambar, .video, .perbesar]) { a in menu(a) }
             Spacer()
-            Text("OTAK AI").font(.system(size: 10, weight: .bold)).tracking(1.2).foregroundStyle(.white.opacity(0.4)).padding(.horizontal, 8)
+            Button { s.alat = .dukung } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "heart.fill").foregroundStyle(.pink)
+                    Text(T("Dukung Developer", "Support the Dev")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                    Spacer()
+                }
+                .padding(.horizontal, 12).padding(.vertical, 9)
+                .background(RoundedRectangle(cornerRadius: 12).fill(LinearGradient(colors: [Color.pink.opacity(s.alat == .dukung ? 0.45 : 0.22), Color.orange.opacity(s.alat == .dukung ? 0.35 : 0.15)], startPoint: .leading, endPoint: .trailing)))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.pink.opacity(s.alat == .dukung ? 0.8 : 0.3)))
+                .contentShape(Rectangle())
+            }.buttonStyle(.plain).padding(.bottom, 8)
+            Text(T("OTAK AI", "AI BRAIN")).font(.system(size: 10, weight: .bold)).tracking(1.2).foregroundStyle(.white.opacity(0.4)).padding(.horizontal, 8)
             Button { s.alat = .otak } label: {
                 HStack(spacing: 10) {
                     Ikon(nama: s.otakAktif.ikon, warna: [s.otakAktif.warna, s.otakAktif.warna.opacity(0.6)], ukuran: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(s.otakAktif.nama).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
-                        Text("Klik untuk mengganti").font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
+                        Text(T("Klik untuk mengganti", "Click to change")).font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
                     }
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold)).foregroundStyle(.white.opacity(0.4))
@@ -670,10 +918,19 @@ struct Utama: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(s.alat == .otak ? s.otakAktif.warna : .white.opacity(0.08)))
                 .contentShape(Rectangle())
             }.buttonStyle(.plain)
-            Button { NSWorkspace.shared.open(URL(fileURLWithPath: HASIL)) } label: {
-                Label("Buka folder hasil", systemImage: "folder.fill").font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
-                    .padding(.horizontal, 8).padding(.vertical, 8)
-            }.buttonStyle(.plain).padding(.bottom, 14)
+            HStack {
+                Button { NSWorkspace.shared.open(URL(fileURLWithPath: HASIL)) } label: {
+                    Label(T("Folder hasil", "Output folder"), systemImage: "folder.fill").font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+                        .padding(.horizontal, 8).padding(.vertical, 8).contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                Spacer()
+                Button { s.alat = .pengaturan } label: {
+                    Image(systemName: "gearshape.fill").font(.system(size: 15))
+                        .foregroundStyle(s.alat == .pengaturan ? .white : .white.opacity(0.6))
+                        .padding(8).background(Circle().fill(.white.opacity(s.alat == .pengaturan ? 0.18 : 0.06)))
+                        .contentShape(Circle())
+                }.buttonStyle(.plain).help(T("Pengaturan (⌘,)", "Settings (⌘,)"))
+            }.padding(.bottom, 14)
         }.padding(.horizontal, 14)
     }
 
@@ -706,9 +963,14 @@ struct AIStudioApp: App {
     @StateObject var studio = Studio()
     var body: some Scene {
         Window("RIXSUN AI Studio Local", id: "utama") {
-            Utama().environmentObject(studio)
+            Utama().environmentObject(studio).id(studio.bahasa)   // ganti bahasa = gambar ulang semua teks
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 980, height: 700)
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button(T("Pengaturan…", "Settings…")) { studio.alat = .pengaturan }.keyboardShortcut(",", modifiers: .command)
+            }
+        }
     }
 }
