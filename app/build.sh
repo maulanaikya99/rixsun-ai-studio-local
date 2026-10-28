@@ -41,23 +41,35 @@ if [ "$1" = dmg ]; then
     mkdir -p "$D/dist"; ISI="$(mktemp -d)/RIXSUN AI Studio Local"; mkdir -p "$ISI"
     ditto "$TMP" "$ISI/RIXSUN AI STUDIO LOCAL.app"
     ln -s /Applications "$ISI/Applications"
-    cat > "$ISI/BACA DULU.txt" <<'EOF'
-RIXSUN AI STUDIO LOCAL - cara pasang di Mac lain
+    cat > "$ISI/READ ME FIRST.txt" <<'EOF'
+RIXSUN AI STUDIO LOCAL - installing on a Mac
 
-Syarat: Mac chip Apple (M1/M2/M3/M4), RAM 16 GB atau lebih, ruang kosong ±52 GB (paket lengkap), internet.
+Requirements: Mac with Apple silicon (M1/M2/M3/M4), 16 GB RAM or more,
+~52 GB free disk space (full package), internet connection.
 
-1. Seret "RIXSUN AI STUDIO LOCAL" ke folder Applications.
-2. Buka Applications, KLIK KANAN aplikasinya -> Open -> Open
-   (sekali saja; aplikasi ini tidak ditandatangani Apple).
-   Bila tetap diblokir: System Settings -> Privacy & Security -> "Open Anyway".
-3. Muncul layar Persiapan: pilih lokasi (SSD eksternal disarankan) dan paket, klik Pasang.
-   Terminal terbuka dan mengunduh semuanya otomatis (1-3 jam). Bila terputus, klik Pasang lagi.
-4. Paket Konten: VoiceStudio akan terbuka; selesaikan wizard-nya lalu tekan Enter di Terminal.
-5. Selesai: klik "Periksa Lagi" di aplikasi.
+1. Drag "RIXSUN AI STUDIO LOCAL" into the Applications folder.
+2. Open Applications, RIGHT-CLICK the app -> Open -> Open
+   (once only; the app is not signed by Apple).
+   If it is still blocked: System Settings -> Privacy & Security -> "Open Anyway".
+3. The Setup screen (Persiapan) appears: choose a location (an external SSD is
+   recommended) and the packages, then click Install (Pasang).
+   Terminal opens and downloads everything automatically (1-3 hours).
+   If the connection drops, click Install again; it resumes.
+4. Content package: VoiceStudio opens; finish its wizard, then press Enter in Terminal.
+5. Done: click "Periksa Lagi" (Check Again) in the app.
 
-Opsional (otak AI online):
-- Claude / Opus : pasang Claude Code (https://claude.com/claude-code) lalu login.
-- DeepSeek gratis: pasang OpenCode -> curl -fsSL https://opencode.ai/install | bash
+Menu guide (the app interface is in Indonesian):
+  Konten TikTok Otomatis = automatic TikTok content
+  Buat Gambar            = create image
+  Gambar -> Video        = image to video
+  Perbesar Gambar        = upscale image
+  Otak AI                = AI brain (LLM that writes scripts & prompts)
+
+Optional online AI brains:
+- Claude / Opus  : install Claude Code (https://claude.com/claude-code) and sign in.
+- Free DeepSeek  : install OpenCode -> curl -fsSL https://opencode.ai/install | bash
+
+Source & help: https://github.com/maulanaikya99/rixsun-ai-studio-local
 EOF
     rm -f "$D/dist/RIXSUN-AI-Studio-Local.dmg"
     hdiutil create -quiet -volname "RIXSUN AI Studio Local" -srcfolder "$ISI" -fs HFS+ -format UDZO "$D/dist/RIXSUN-AI-Studio-Local.dmg"

@@ -1,62 +1,64 @@
 # RIXSUN AI Studio Local
 
-Studio konten AI yang berjalan **100% di Mac** (Apple Silicon): buat gambar, gerakkan gambar jadi video, perbesar gambar, dan buat **video TikTok otomatis** dari sebuah topik, lengkap dengan naskah, narator, gambar, video, musik, dan subtitle.
+An AI content studio that runs **100% on your Mac** (Apple Silicon): generate images, turn images into video, upscale images, and create **automatic TikTok videos** from a single topic, complete with script, narrator voice, images, video, music and subtitles.
 
 ![RIXSUN AI Studio Local](app/Latar.jpg)
 
-## Unduh
+## Download
 
-**[⬇️ RIXSUN-AI-Studio-Local.dmg](https://github.com/maulanaikya99/rixsun-ai-studio-local/releases/latest)** (±3 MB). Model AI diunduh saat pertama kali dibuka.
+**[⬇️ RIXSUN-AI-Studio-Local.dmg](https://github.com/maulanaikya99/rixsun-ai-studio-local/releases/latest/download/RIXSUN-AI-Studio-Local.dmg)** (~3 MB). The AI models are downloaded on first launch.
 
-### Syarat
-- Mac chip Apple (M1/M2/M3/M4). Mac Intel tidak didukung.
-- RAM 16 GB atau lebih.
-- Ruang kosong ±20 GB (Dasar) sampai ±52 GB (Lengkap). SSD eksternal disarankan.
-- Internet untuk pemasangan pertama.
+### Requirements
+- Mac with Apple silicon (M1/M2/M3/M4). Intel Macs are not supported.
+- 16 GB RAM or more.
+- ~20 GB (Basic) to ~52 GB (Full) of free disk space. An external SSD is recommended.
+- Internet connection for the first-time setup.
 
-### Pasang
-1. Buka DMG, seret **RIXSUN AI STUDIO LOCAL** ke **Applications**.
-2. Pertama kali dibuka: **klik kanan → Open → Open**. Aplikasi ini tidak ditandatangani Apple. Bila tetap diblokir: System Settings → Privacy & Security → **Open Anyway**.
-3. Di layar **Persiapan**, pilih lokasi dan paket, lalu klik **Pasang**. Terminal terbuka dan mengunduh semuanya otomatis (1–3 jam). Bila terputus, klik Pasang lagi; unduhan dilanjutkan.
-4. Paket Konten: VoiceStudio terbuka. Selesaikan wizard-nya, lalu tekan Enter di Terminal.
-5. Selesai: klik **Periksa Lagi**.
+### Install
+1. Open the DMG and drag **RIXSUN AI STUDIO LOCAL** into **Applications**.
+2. First launch: **right-click → Open → Open**. The app is not signed by Apple. If macOS still blocks it, go to System Settings → Privacy & Security → **Open Anyway**.
+3. On the **Persiapan** (Setup) screen, choose a location and the packages, then click **Pasang** (Install). A Terminal window opens and downloads everything automatically (1–3 hours). If the connection drops, click Install again; downloads resume where they stopped.
+4. Content package only: VoiceStudio opens. Finish its setup wizard, then press Enter in the Terminal window.
+5. Done: click **Periksa Lagi** (Check Again).
 
-## Fitur
+> The app interface is currently in Indonesian. Menu guide: *Konten TikTok Otomatis* = automatic TikTok content, *Buat Gambar* = create image, *Gambar → Video* = image to video, *Perbesar Gambar* = upscale image, *Otak AI* = AI brain (LLM).
 
-| Menu | Mesin |
+## Features
+
+| Menu | Engine |
 |---|---|
-| Konten TikTok Otomatis | Naskah (otak AI) → narator OmniVoice → Whisper → FLUX → LTX-2.3 → rakit MP4 1080×1920 |
-| Buat Gambar | FLUX.1 schnell (MLX, 4-bit) |
-| Gambar → Video | LTX-2.3 (MLX, 4-bit) |
-| Perbesar Gambar | Real-ESRGAN x2 |
+| Automatic TikTok content | Script (AI brain) → OmniVoice narrator → Whisper → FLUX → LTX-2.3 → 1080×1920 MP4 |
+| Create image | FLUX.1 schnell (MLX, 4-bit) |
+| Image → video | LTX-2.3 (MLX, 4-bit) |
+| Upscale image | Real-ESRGAN x2 |
 
-### Otak AI (penulis naskah & prompt)
+### AI brain (writes scripts & prompts)
 
-| Otak | Keterangan |
+| Brain | Notes |
 |---|---|
-| Gemma 3 12B | Lokal, gratis, offline (bawaan) |
-| Claude Sonnet / Opus | Perlu [Claude Code](https://claude.com/claude-code) terpasang & login |
-| DeepSeek V4.1 Flash | Gratis lewat [OpenCode](https://opencode.ai) (ada batas harian) |
-| DeepSeek via Genspark / API | Perlu kredit berbayar |
+| Gemma 3 12B | Local, free, offline (default) |
+| Claude Sonnet / Opus | Requires [Claude Code](https://claude.com/claude-code) installed and signed in |
+| DeepSeek V4.1 Flash | Free through [OpenCode](https://opencode.ai) (daily limit) |
+| DeepSeek via Genspark / API | Requires paid credits |
 
-Bila otak online gagal (kuota habis, tanpa internet), studio otomatis kembali ke Gemma lokal.
+If an online brain fails (quota used up, no internet), the studio automatically falls back to local Gemma.
 
-## Lisensi model
+## Model licenses
 
-Model diunduh langsung dari sumber resminya dan tunduk pada lisensinya masing-masing:
+Models are downloaded directly from their official sources and are subject to their own licenses:
 FLUX.1 schnell (Apache-2.0), Gemma 3 (Gemma Terms of Use), LTX-2.3 (LTX-2 Community License),
 Whisper (MIT), Real-ESRGAN (BSD-3), [VoiceStudio](https://github.com/debpalash/VoiceStudio) (AGPL-3.0),
-OmniVoice (**CC-BY-NC, non-komersial**). Periksa lisensi sebelum memakai hasilnya untuk keperluan komersial.
+OmniVoice (**CC-BY-NC, non-commercial**). Check each license before using the output commercially.
 
-## Struktur
+## Layout
 
 ```
-studio.sh          pengendali (gambar | video | perbesar | konten | otak)
-otak.py            pemilih LLM (gemma, claude, opus, opencode, genspark, deepseek)
-terjemah.py        deskripsi Indonesia -> prompt Inggris
+studio.sh          controller (gambar | video | perbesar | konten | otak)
+otak.py            LLM selector (gemma, claude, opus, opencode, genspark, deepseek)
+terjemah.py        Indonesian description -> English prompt
 perbesar.py        Real-ESRGAN x2
-konten/            pipeline konten otomatis (naskah, suara, gambar, video, rakit)
-app/AIStudio.swift aplikasi SwiftUI
-app/build.sh       bangun aplikasi; `build.sh dmg` membuat installer
-app/pasang/        setup.sh (pemasang Mac baru) + mflux-req.txt
+konten/            automatic content pipeline (script, voice, image, video, assembly)
+app/AIStudio.swift SwiftUI app
+app/build.sh       builds the app; `build.sh dmg` creates the installer
+app/pasang/        setup.sh (new-Mac installer) + mflux-req.txt
 ```
