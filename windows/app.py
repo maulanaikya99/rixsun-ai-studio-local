@@ -9,6 +9,7 @@ import tkinter as tk
 import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
+from PIL import Image, ImageOps, ImageTk
 
 APP_ROOT = Path(__file__).resolve().parent.parent
 if str(APP_ROOT) not in sys.path:
@@ -119,13 +120,37 @@ class StudioApp(tk.Tk):
             )
             button.pack(fill="x", pady=3)
             self.nav_buttons[key] = button
+        for label, icon in (("Gambar → video", "▣"), ("Perbesar gambar", "⌕")):
+            tk.Button(
+                sidebar, text=f"{icon}   {label}  ·  belum tersedia", anchor="w", padx=12, pady=11,
+                relief="flat", borderwidth=0, font=("Segoe UI", 9), background="#0b0d16",
+                foreground="#666b7a", disabledforeground="#666b7a", state="disabled",
+            ).pack(fill="x", pady=2)
+        support = tk.Button(
+            sidebar, text="♥   Dukung developer", anchor="w", padx=12, pady=10,
+            relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 9, "bold"),
+            background="#4a1d39", foreground="#ffffff", activebackground="#6b2a4d",
+            activeforeground="#ffffff", command=lambda: webbrowser.open("https://saweria.co/Rixsun"),
+        )
         sidebar_bottom = ttk.Frame(sidebar, style="Sidebar.TFrame")
-        sidebar_bottom.pack(side="bottom", fill="x")
-        ttk.Label(sidebar_bottom, text="AI lokal", style="Sidebar.TLabel", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        ttk.Label(sidebar_bottom, text="OTAK AI", style="SidebarMuted.TLabel", font=("Segoe UI", 8, "bold")).pack(anchor="w")
+        brain_name = "Gemma 3 12B" if self.profile.get() == "standard" else "Gemma 3 4B"
+        self.brain_label = ttk.Label(sidebar_bottom, text=brain_name, style="Sidebar.TLabel", font=("Segoe UI", 10, "bold"))
+        self.brain_label.pack(anchor="w", pady=(2, 2))
         gpu_text = f"GPU NVIDIA · VRAM {vram} GB" if vram else "GPU NVIDIA tidak terdeteksi"
         ttk.Label(sidebar_bottom, text=gpu_text, style="SidebarMuted.TLabel", wraplength=190).pack(anchor="w", pady=(3, 0))
         if 0 < vram < 12:
             ttk.Label(sidebar_bottom, text="Profil Ringan disarankan", style="SidebarMuted.TLabel", wraplength=190).pack(anchor="w", pady=(5, 0))
+        side_actions = ttk.Frame(sidebar, style="Sidebar.TFrame")
+        side_actions.pack(side="bottom", fill="x", pady=(10, 8))
+        tk.Button(side_actions, text="▰  Folder hasil", anchor="w", padx=5, pady=7, relief="flat", borderwidth=0,
+                  background="#0b0d16", foreground="#c0c2ce", activebackground="#252033",
+                  command=self._open_output).pack(side="left", fill="x", expand=True)
+        tk.Button(side_actions, text="⚙", width=3, pady=6, relief="flat", borderwidth=0,
+                  background="#252033", foreground="#ffffff", activebackground="#39364d",
+                  command=lambda: self._show_page("settings")).pack(side="right")
+        sidebar_bottom.pack(side="bottom", fill="x")
+        support.pack(side="bottom", fill="x", pady=(0, 12))
 
         main = ttk.Frame(shell, style="Root.TFrame", padding=(28, 24, 28, 18))
         main.grid(row=0, column=1, sticky="nsew")
@@ -133,21 +158,49 @@ class StudioApp(tk.Tk):
         main.rowconfigure(1, weight=1)
         self.page_title = tk.StringVar()
         self.page_subtitle = tk.StringVar()
-        ttk.Label(main, textvariable=self.page_title, style="PageTitle.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(main, textvariable=self.page_subtitle, style="PageSub.TLabel").grid(row=0, column=0, sticky="w", pady=(38, 0))
+        header = ttk.Frame(main, style="Root.TFrame")
+        header.grid(row=0, column=0, sticky="ew")
+        self.page_icon = tk.Label(header, text="▶", width=2, height=1, font=("Segoe UI Symbol", 20, "bold"),
+                                  background="#f05b78", foreground="#ffffff", padx=8, pady=6)
+        self.page_icon.pack(side="left", padx=(0, 14))
+        title_box = ttk.Frame(header, style="Root.TFrame")
+        title_box.pack(side="left", fill="x", expand=True)
+        ttk.Label(title_box, textvariable=self.page_title, style="PageTitle.TLabel").pack(anchor="w")
+        ttk.Label(title_box, textvariable=self.page_subtitle, style="PageSub.TLabel").pack(anchor="w", pady=(2, 0))
         self.page_container = ttk.Frame(main, style="Root.TFrame")
         self.page_container.grid(row=1, column=0, sticky="nsew", pady=(18, 12))
         self.page_container.columnconfigure(0, weight=1)
         self.page_container.rowconfigure(0, weight=1)
-        self.content_tab = ttk.Frame(self.page_container, style="Root.TFrame")
+        self.content_wrap = ttk.Frame(self.page_container, style="Root.TFrame")
+        self.content_wrap.columnconfigure(0, weight=1)
+        self.content_wrap.rowconfigure(0, weight=1)
+        self.content_tab = tk.Canvas(self.content_wrap, highlightthickness=0, bd=0, bg="#170e2a")
+        self.content_tab.grid(row=0, column=0, sticky="nsew")
+        self.content_scrollbar = ttk.Scrollbar(self.content_wrap, orient="vertical", command=self.content_tab.yview)
+        self.content_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.content_tab.configure(yscrollcommand=self.content_scrollbar.set)
         self.image_tab = ttk.Frame(self.page_container, style="Root.TFrame")
-        self.settings_tab = ttk.Frame(self.page_container, style="Root.TFrame")
-        self.page_frames = {"content": self.content_tab, "image": self.image_tab, "settings": self.settings_tab}
+        self.settings_wrap = ttk.Frame(self.page_container, style="Root.TFrame")
+        self.settings_wrap.columnconfigure(0, weight=1)
+        self.settings_wrap.rowconfigure(0, weight=1)
+        self.settings_canvas = tk.Canvas(self.settings_wrap, highlightthickness=0, bd=0, bg="#10121d")
+        self.settings_canvas.grid(row=0, column=0, sticky="nsew")
+        self.settings_scrollbar = ttk.Scrollbar(self.settings_wrap, orient="vertical", command=self.settings_canvas.yview)
+        self.settings_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.settings_canvas.configure(yscrollcommand=self.settings_scrollbar.set)
+        self.settings_tab = ttk.Frame(self.settings_canvas, style="Root.TFrame")
+        self.settings_window = self.settings_canvas.create_window((0, 0), window=self.settings_tab, anchor="nw")
+        self.settings_tab.bind("<Configure>", lambda _event: self.settings_canvas.configure(scrollregion=self.settings_canvas.bbox("all")))
+        self.settings_canvas.bind("<Configure>", lambda event: self.settings_canvas.itemconfigure(self.settings_window, width=event.width))
+        self.page_frames = {"content": self.content_wrap, "image": self.image_tab, "settings": self.settings_wrap}
         self._build_content()
         self._build_image()
         self._build_settings()
         for page in self.page_frames.values():
             page.grid(row=0, column=0, sticky="nsew")
+        self.content_tab.bind("<MouseWheel>", self._scroll_content)
+        self.topic_box.bind("<MouseWheel>", self._scroll_content)
+        self.settings_canvas.bind("<MouseWheel>", self._scroll_settings)
         self._show_page("content")
 
         self.log = scrolledtext.ScrolledText(main, height=7, wrap="word", state="disabled", font=("Consolas", 9),
@@ -165,6 +218,8 @@ class StudioApp(tk.Tk):
         }
         self.page_title.set(titles[page][0])
         self.page_subtitle.set(titles[page][1])
+        self.page_icon.configure(text={"content": "▶", "image": "▧", "settings": "⚙"}[page],
+                                 background={"content": "#f05b78", "image": "#aa62eb", "settings": "#397de8"}[page])
         self.page_frames[page].tkraise()
         for key, button in self.nav_buttons.items():
             button.configure(background="#252033" if key == page else "#0b0d16",
@@ -179,35 +234,108 @@ class StudioApp(tk.Tk):
 
     def _build_content(self):
         frame = self.content_tab
-        profile_card = self._card(frame, "Profil perangkat")
-        ttk.Radiobutton(profile_card, text="1. Standar: GPU NVIDIA RTX dengan VRAM 12 GB+ (direkomendasikan)", variable=self.profile,
-                        value="standard", command=self._profile_changed).pack(anchor="w", pady=(4, 0))
-        ttk.Label(profile_card, text="Gemma 3 12B menulis naskah dan SDXL membuat gambar beresolusi lebih tinggi. RAM 32 GB disarankan.", style="CardBody.TLabel", wraplength=800).pack(anchor="w", padx=(24, 0), pady=(2, 5))
-        ttk.Radiobutton(profile_card, text="2. Ringan: GPU NVIDIA dengan VRAM di bawah 12 GB, grafis terintegrasi, atau CPU", variable=self.profile,
-                        value="lite", command=self._profile_changed).pack(anchor="w", pady=(6, 0))
-        ttk.Label(profile_card, text="Gemma 3 4B dan SDXL Turbo memakai pengaturan ringan. RAM 16 GB disarankan. Gambar lebih lambat pada CPU.", style="CardBody.TLabel", wraplength=800).pack(anchor="w", padx=(24, 0), pady=(2, 0))
+        self.content_bg = None
+        try:
+            self.content_bg = Image.open(Path(__file__).with_name("Latar.jpg")).convert("RGB")
+        except OSError:
+            pass
+        self.topic_box = tk.Text(frame, height=3, wrap="word", font=("Segoe UI", 11),
+                                 background="#181225", foreground="#ffffff", insertbackground="#ffffff",
+                                 relief="flat", borderwidth=0, padx=12, pady=10)
+        self.topic_box.bind("<KeyRelease>", self._topic_changed)
+        self.topic_placeholder = None
+        self.content_button = tk.Button(
+            frame, text="▶  Buat konten", command=self._start_content, cursor="hand2",
+            relief="flat", borderwidth=0, padx=22, pady=10, font=("Segoe UI", 10, "bold"),
+            background="#e34d79", foreground="#ffffff", activebackground="#f56a91", activeforeground="#ffffff",
+        )
+        self.content_tab.bind("<Configure>", self._draw_content)
+        self._draw_content()
 
-        topic_card = self._card(frame, "Topik video")
-        ttk.Entry(topic_card, textvariable=self.topic).pack(fill="x")
+    def _topic_changed(self, _event=None):
+        self.topic.set(self.topic_box.get("1.0", "end-1c").strip())
+        if self.topic_placeholder is not None:
+            self.content_tab.itemconfigure(self.topic_placeholder, state="hidden" if self.topic.get() else "normal")
 
-        output_card = self._card(frame, "Folder hasil dan narator")
-        row = ttk.Frame(output_card, style="Card.TFrame")
-        row.pack(fill="x")
-        ttk.Entry(row, textvariable=self.output_root).pack(side="left", fill="x", expand=True)
-        ttk.Button(row, text="Pilih…", command=self._choose_output).pack(side="left", padx=(8, 0))
-        ttk.Label(output_card, text="Narator", style="CardBody.TLabel").pack(anchor="w", pady=(12, 4))
-        row = ttk.Frame(output_card, style="Card.TFrame")
-        row.pack(fill="x")
-        ttk.Radiobutton(row, text="Suara Windows lokal", variable=self.tts_backend, value="sapi").pack(side="left")
-        ttk.Radiobutton(row, text="VoiceStudio (opsional)", variable=self.tts_backend, value="voicestudio").pack(side="left", padx=(18, 0))
-        ttk.Label(output_card, text="VoiceStudio memerlukan ID profil suara di Pengaturan. OmniVoice adalah nama model, bukan ID profil. Suara Windows lokal dapat langsung dipakai.", style="CardBody.TLabel", wraplength=800).pack(anchor="w", pady=(4, 0))
+    def _scroll_content(self, event):
+        self.content_tab.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        return "break"
 
-        row = ttk.Frame(frame, style="Root.TFrame")
-        row.pack(fill="x", pady=(4, 0))
-        self.content_button = ttk.Button(row, text="▶  Buat video otomatis", style="Primary.TButton", command=self._start_content)
-        self.content_button.pack(side="left")
-        ttk.Button(row, text="Buka folder hasil", command=self._open_output).pack(side="left", padx=8)
-        ttk.Button(row, text="Panduan LTX Desktop", command=lambda: webbrowser.open("https://github.com/Lightricks/LTX-Desktop/releases/latest")).pack(side="right")
+    def _scroll_settings(self, event):
+        self.settings_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        return "break"
+
+    def _round_card(self, canvas, x1, y1, x2, y2, fill="#251633", outline="#ffffff"):
+        radius = 16
+        points = [x1 + radius, y1, x2 - radius, y1, x2, y1 + radius, x2, y2 - radius,
+                  x2 - radius, y2, x1 + radius, y2, x1, y2 - radius, x1, y1 + radius]
+        return canvas.create_polygon(points, smooth=True, splinesteps=12, fill=fill, outline=outline, width=1)
+
+    def _draw_content(self, _event=None):
+        canvas = self.content_tab
+        width, height = max(700, canvas.winfo_width()), max(560, canvas.winfo_height())
+        canvas.delete("all")
+        if self.content_bg is not None:
+            image = ImageOps.fit(self.content_bg, (width, height), method=Image.Resampling.LANCZOS)
+            shade = Image.new("RGB", image.size, (12, 7, 27))
+            image = Image.blend(image, shade, 0.42)
+            self.content_photo = ImageTk.PhotoImage(image)
+            canvas.create_image(0, 0, image=self.content_photo, anchor="nw")
+        else:
+            canvas.configure(background="#170e2a")
+
+        margin = 12
+        card_width = width - margin * 2
+        x1, x2 = margin, width - margin
+        y = 8
+        self._round_card(canvas, x1, y, x2, y + 116, fill="#241631", outline="#5b466b")
+        canvas.create_text(x1 + 18, y + 19, text="TOPIK", anchor="w", fill="#b8aac9", font=("Segoe UI", 9, "bold"))
+        self.topic_box_window = canvas.create_window(x1 + 18, y + 42, anchor="nw", width=card_width - 36, height=60, window=self.topic_box)
+        self.topic_placeholder = canvas.create_text(x1 + 32, y + 58, text="Contoh: sejarah HP, asal-usul kopi, kenapa langit biru",
+                                                    anchor="nw", fill="#80758e", font=("Segoe UI", 10), state="hidden" if self.topic.get() else "normal")
+        y += 128
+
+        self._round_card(canvas, x1, y, x2, y + 122, fill="#241631", outline="#5b466b")
+        canvas.create_text(x1 + 18, y + 18, text="MODE VISUAL", anchor="w", fill="#b8aac9", font=("Segoe UI", 9, "bold"))
+        gap = 12
+        option_w = (card_width - 36 - gap) / 2
+        left_x1, left_x2 = x1 + 18, x1 + 18 + option_w
+        right_x1, right_x2 = left_x2 + gap, x2 - 18
+        self._round_card(canvas, left_x1, y + 38, left_x2, y + 108, fill="#291b35", outline="#51425e")
+        canvas.create_text(left_x1 + 14, y + 54, text="✦  Video AI", anchor="w", fill="#a795b2", font=("Segoe UI", 10, "bold"))
+        canvas.create_text(left_x1 + 14, y + 82, text="LTX belum tersedia di edisi Windows", anchor="w", fill="#93879d", font=("Segoe UI", 8))
+        self._round_card(canvas, right_x1, y + 38, right_x2, y + 108, fill="#4d2145", outline="#ff3c78")
+        canvas.create_text(right_x1 + 14, y + 54, text="◌  Cepat", anchor="w", fill="#ffffff", font=("Segoe UI", 10, "bold"))
+        canvas.create_text(right_x1 + 14, y + 82, text="Gambar + zoom pelan · durasi bergantung GPU", anchor="w", fill="#d7c4d9", font=("Segoe UI", 8))
+        y += 134
+
+        self._round_card(canvas, x1, y, x2, y + 116, fill="#241631", outline="#5b466b")
+        canvas.create_text(x1 + 18, y + 18, text="ALUR KERJA", anchor="w", fill="#b8aac9", font=("Segoe UI", 9, "bold"))
+        steps = [
+            ("≡", "Naskah", "Gemma 3 12B" if self.profile.get() == "standard" else "Gemma 3 4B"),
+            ("♫", "Suara", "VoiceStudio" if self.tts_backend.get() == "voicestudio" else "Windows lokal"),
+            ("▧", "Gambar", "SDXL" if self.profile.get() == "standard" else "SDXL Turbo"),
+            ("▣", "Video", "Gerak kamera"),
+            ("▰", "Rakit", "MP4"),
+        ]
+        inner_width = card_width - 42
+        col_width = inner_width / len(steps)
+        for index, (icon, label, detail) in enumerate(steps):
+            center_x = x1 + 21 + col_width * (index + 0.5)
+            canvas.create_text(center_x, y + 46, text=icon, fill="#f4ebfb", font=("Segoe UI Symbol", 17, "bold"))
+            canvas.create_text(center_x, y + 72, text=label, fill="#ffffff", font=("Segoe UI", 9, "bold"))
+            canvas.create_text(center_x, y + 91, text=detail, fill="#b8aac9", font=("Segoe UI", 8))
+            if index < len(steps) - 1:
+                canvas.create_text(x1 + 21 + col_width * (index + 1), y + 72, text="›", fill="#80758e", font=("Segoe UI", 13))
+        y += 128
+
+        self._round_card(canvas, x1, y, x2, y + 48, fill="#321b3b", outline="#61476a")
+        canvas.create_text(x1 + 18, y + 24, text="ⓘ  Narasi dan takarir dibuat dalam bahasa Indonesia. Video memakai gerak kamera pada gambar.",
+                           anchor="w", fill="#d4c7dc", font=("Segoe UI", 8))
+        y += 60
+        canvas.create_text(x1 + 4, y + 21, text="Durasi tergantung perangkat dan jumlah adegan", anchor="w", fill="#b8aac9", font=("Segoe UI", 8))
+        canvas.create_window(x2 - 4, y + 21, anchor="e", window=self.content_button)
+        canvas.configure(scrollregion=(0, 0, width, y + 48))
 
     def _build_image(self):
         frame = self.image_tab
@@ -223,25 +351,86 @@ class StudioApp(tk.Tk):
 
     def _build_settings(self):
         frame = self.settings_tab
-        card = self._card(frame, "VoiceStudio lokal (opsional)")
-        ttk.Label(card, text="Gunakan jika VoiceStudio sudah terpasang dan berjalan. Jika tidak, pilih Suara Windows lokal di halaman Konten TikTok.", style="CardBody.TLabel", wraplength=800).pack(anchor="w", pady=(0, 10))
-        self._setting_row(card, "Alamat API", self.tts_base_url)
-        self._setting_row(card, "Model suara", self.tts_model)
-        self._setting_row(card, "ID profil VoiceStudio", self.voice_profile)
-        ttk.Label(card, text="OmniVoice adalah nama mesin suara. Kolom ID profil berisi ID profil yang Anda buat di VoiceStudio.", style="CardBody.TLabel", wraplength=800).pack(anchor="w", pady=(6, 0))
-        ttk.Button(frame, text="Panduan VoiceStudio Windows", command=lambda: webbrowser.open("https://github.com/debpalash/VoiceStudio/blob/main/docs/install/windows.md")).pack(anchor="w", pady=(2, 8))
-        ttk.Button(frame, text="Simpan pengaturan", style="Primary.TButton", command=self._save).pack(anchor="w")
+        frame.columnconfigure(0, weight=1)
+
+        profile_card = self._card(frame, "Pilih profil berdasarkan GPU")
+        ttk.Radiobutton(
+            profile_card, text="1. Standar: GPU NVIDIA RTX dengan VRAM 12 GB atau lebih",
+            variable=self.profile, value="standard", command=self._profile_changed,
+        ).pack(anchor="w", pady=(2, 0))
+        ttk.Label(
+            profile_card, text="Gemma 3 12B dan SDXL. RAM 32 GB disarankan.",
+            style="CardBody.TLabel", wraplength=800,
+        ).pack(anchor="w", padx=(24, 0), pady=(2, 5))
+        ttk.Radiobutton(
+            profile_card, text="2. Ringan: GPU dengan VRAM di bawah 12 GB, grafis terintegrasi, atau CPU",
+            variable=self.profile, value="lite", command=self._profile_changed,
+        ).pack(anchor="w", pady=(5, 0))
+        ttk.Label(
+            profile_card, text="Gemma 3 4B dan SDXL Turbo. RAM 16 GB disarankan; pembuatan gambar lebih lambat pada CPU.",
+            style="CardBody.TLabel", wraplength=800,
+        ).pack(anchor="w", padx=(24, 0), pady=(2, 5))
+        gpu_text = f"GPU NVIDIA terdeteksi: VRAM {self.vram} GB" if self.vram else "GPU NVIDIA tidak terdeteksi. Profil Ringan disarankan."
+        ttk.Label(profile_card, text=gpu_text, style="CardBody.TLabel").pack(anchor="w", pady=(5, 0))
+
+        output_card = self._card(frame, "Folder hasil")
+        output_row = ttk.Frame(output_card, style="Card.TFrame")
+        output_row.pack(fill="x")
+        ttk.Entry(output_row, textvariable=self.output_root).pack(side="left", fill="x", expand=True)
+        ttk.Button(output_row, text="Pilih…", command=self._choose_output).pack(side="left", padx=(8, 0))
+
+        voice_card = self._card(frame, "Narator")
+        ttk.Radiobutton(
+            voice_card, text="Suara Windows lokal (langsung digunakan, tanpa ID profil)",
+            variable=self.tts_backend, value="sapi", command=self._voice_backend_changed,
+        ).pack(anchor="w")
+        ttk.Radiobutton(
+            voice_card, text="VoiceStudio lokal (memerlukan ID profil VoiceStudio)",
+            variable=self.tts_backend, value="voicestudio", command=self._voice_backend_changed,
+        ).pack(anchor="w")
+        ttk.Label(
+            voice_card, text="OmniVoice adalah nama model, bukan ID profil. ID profil dibuat di aplikasi VoiceStudio.",
+            style="CardBody.TLabel", wraplength=800,
+        ).pack(anchor="w", pady=(2, 8))
+        self.voice_entries = []
+        self.voice_entries.append(self._setting_row(voice_card, "Alamat API", self.tts_base_url))
+        self.voice_entries.append(self._setting_row(voice_card, "Model suara", self.tts_model))
+        self.voice_entries.append(self._setting_row(voice_card, "ID profil VoiceStudio", self.voice_profile))
+        self._update_voice_controls()
+        ttk.Button(
+            voice_card, text="Panduan VoiceStudio untuk Windows",
+            command=lambda: webbrowser.open("https://github.com/debpalash/VoiceStudio/blob/main/docs/install/windows.md"),
+        ).pack(anchor="w", pady=(8, 0))
+        ttk.Button(frame, text="Simpan pengaturan", style="Primary.TButton", command=self._save).pack(anchor="w", pady=(2, 0))
 
     @staticmethod
     def _setting_row(parent, label, variable):
         row = ttk.Frame(parent, style="Card.TFrame")
         row.pack(fill="x", pady=4)
         ttk.Label(row, text=label, style="CardBody.TLabel", width=22).pack(side="left")
-        ttk.Entry(row, textvariable=variable).pack(side="left", fill="x", expand=True)
+        entry = ttk.Entry(row, textvariable=variable)
+        entry.pack(side="left", fill="x", expand=True)
+        return entry
+
+    def _update_voice_controls(self):
+        enabled = self.tts_backend.get() == "voicestudio"
+        for entry in self.voice_entries:
+            entry.configure(state="normal" if enabled else "disabled")
+
+    def _voice_backend_changed(self):
+        self._update_voice_controls()
+        self._save()
+        if self.tts_backend.get() == "sapi":
+            self._append("Narator memakai suara Windows lokal. ID profil tidak diperlukan.")
+        elif self.voice_profile.get().strip().casefold() in ("", "omnivoice"):
+            self._append("Isi ID profil VoiceStudio sebelum memilih narator ini. OmniVoice adalah nama model, bukan ID profil.")
+        self._draw_content()
 
     def _profile_changed(self):
         self.config_data["profile"] = self.profile.get()
         self._save()
+        self.brain_label.configure(text="Gemma 3 12B" if self.profile.get() == "standard" else "Gemma 3 4B")
+        self._draw_content()
         model = "gemma3:12b" if self.profile.get() == "standard" else "gemma3:4b"
 
         def ensure_model():
