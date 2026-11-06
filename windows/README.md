@@ -22,7 +22,7 @@ Kedua profil membuat video dari gambar dengan gerak kamera, narasi, takarir, dan
 
 - Membuat video TikTok otomatis: naskah, narasi, gambar adegan, takarir, musik, dan MP4.
 - Membuat satu gambar dari deskripsi.
-- Memakai suara Windows untuk narasi. Untuk suara kustom, pasang [VoiceStudio](https://github.com/debpalash/VoiceStudio/blob/main/docs/install/windows.md), buat profil suara, lalu masukkan ID profil di tab **Pengaturan**.
+- Memakai suara Windows untuk narasi. Untuk suara kustom, pasang [VoiceStudio](https://github.com/debpalash/VoiceStudio/blob/main/docs/install/windows.md), buat profil suara, lalu masukkan ID profil di tab **Pengaturan**. `omnivoice` adalah nama model, bukan ID profil. Jika belum membuat profil, pilih **Suara Windows lokal**.
 - Menyimpan hasil di `Videos\RIXSUN AI Studio`. Jika topik yang sama dijalankan kembali, aplikasi memakai berkas naskah, suara, dan gambar yang sudah ada.
 
 ## Persyaratan
