@@ -23,6 +23,19 @@ An AI content studio that runs **100% on your Mac** (Apple Silicon): generate im
 
 > **Language:** the app follows your Mac's language (English or Indonesian). Change it anytime in **Settings** (gear icon, or ⌘,).
 
+### Windows edition (preview)
+
+The macOS DMG is for Apple silicon Macs. Windows users can install the separate Windows edition from the repository ZIP. Extract the ZIP and run `windows/install.cmd`.
+
+Choose one of two setup profiles:
+
+1. **Standard: NVIDIA RTX with 12 GB+ VRAM (recommended):** Gemma 3 12B and Stable Diffusion XL. A PC with 32 GB system RAM is recommended. Local LTX video generation needs an NVIDIA GPU with 24 GB+ VRAM and 32 GB system RAM.
+2. **Lite: NVIDIA GPU with under 12 GB VRAM, integrated graphics, or CPU:** Gemma 3 4B and SDXL Turbo use lighter settings. A PC with 16 GB system RAM is the practical minimum. Image generation is slower and has less detail. Automatic videos use pan/zoom motion.
+
+The Windows edition creates scripts, narration, still images, subtitles, music, and MP4 videos. It uses Ollama for local text generation and PyTorch for images. Local LTX scene generation is not included; use [LTX Desktop](https://github.com/Lightricks/LTX-Desktop/releases/latest) separately when the PC has a supported GPU. See [windows/README.md](windows/README.md) for requirements, setup, and voice options.
+
+The package workflow also produces a downloadable ZIP under GitHub Actions. When a GitHub release is published, it attaches the Windows package to that release.
+
 ## Features
 
 | Menu | Engine |

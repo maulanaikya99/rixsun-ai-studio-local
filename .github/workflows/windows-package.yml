@@ -1,0 +1,61 @@
+name: Windows package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - 'konten/**'
+      - '.github/workflows/windows-package.yml'
+      - 'README.md'
+  pull_request:
+    paths:
+      - 'windows/**'
+      - 'konten/**'
+      - '.github/workflows/windows-package.yml'
+      - 'README.md'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble install package
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'RIXSUN-AI-Studio-Windows'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item windows (Join-Path $stage 'windows') -Recurse
+          Copy-Item konten (Join-Path $stage 'konten') -Recurse
+          Copy-Item README.md (Join-Path $stage 'README.md')
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath (Join-Path $env:GITHUB_WORKSPACE 'RIXSUN-AI-Studio-Windows.zip') -CompressionLevel Optimal
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: RIXSUN-AI-Studio-Windows
+          path: RIXSUN-AI-Studio-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
+  attach-release:
+    if: github.event_name == 'release'
+    needs: package
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download Windows package
+        uses: actions/download-artifact@v4
+        with:
+          name: RIXSUN-AI-Studio-Windows
+      - name: Attach package to GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload $env:GITHUB_REF_NAME RIXSUN-AI-Studio-Windows.zip --clobber

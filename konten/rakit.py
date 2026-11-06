@@ -9,8 +9,12 @@ from lafal import lafal
 
 W, H, FPS = 1080, 1920, 30
 LEAD, TAIL = 0.4, 1.4            # jeda sebelum narasi pertama / setelah narasi terakhir (detik)
-FONT = "/System/Library/Fonts/Avenir Next.ttc"
-HEAVY, BOLD = 8, 0
+if os.name == "nt":
+    FONT = os.environ.get("RIXSUN_FONT_PATH", os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts", "arialbd.ttf"))
+    HEAVY, BOLD = 0, 0
+else:
+    FONT = os.environ.get("RIXSUN_FONT_PATH", "/System/Library/Fonts/Avenir Next.ttc")
+    HEAVY, BOLD = 8, 0
 KUNING = (255, 214, 64, 255)
 # nama bagian naskah yang kadang ditulis Gemma sebagai label: bukan untuk penonton, tidak ditampilkan
 LABEL_INTERNAL = {"hook", "intro", "pembuka", "pembukaan", "penutup", "pertanyaan", "kesimpulan", "cta",
@@ -18,7 +22,7 @@ LABEL_INTERNAL = {"hook", "intro", "pembuka", "pembukaan", "penutup", "pertanyaa
 K = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
 
-P = sys.argv[1]
+P = os.path.abspath(sys.argv[1]).replace("\\", "/")
 NASKAH = json.load(open(f"{P}/naskah.json"))
 ADG = json.load(open(f"{P}/suara/adegan.json"))
 KATA = json.load(open(f"{P}/suara/kata.json"))
