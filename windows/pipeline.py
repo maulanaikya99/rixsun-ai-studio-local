@@ -37,7 +37,7 @@ def detect_vram_gb():
     try:
         result = subprocess.run(
             [exe, "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
-            check=True, capture_output=True, text=True, timeout=10,
+            check=True, capture_output=True, text=True, errors="replace", timeout=10,
         )
         values = [int(line.strip()) for line in result.stdout.splitlines() if line.strip().isdigit()]
         return max(values, default=0) // 1024
@@ -45,7 +45,7 @@ def detect_vram_gb():
         return 0
 
 
-def _run_naskah(project, topic, profile, callback):
+def _run_naskah(project, topic, profile, brain_model, callback):
     script = CONTENT_DIR / "naskah.py"
     if not script.exists():
         raise FileNotFoundError(f"Skrip naskah tidak ditemukan: {script}")
@@ -56,7 +56,9 @@ def _run_naskah(project, topic, profile, callback):
     sys.modules["otak"] = fake
     old_argv = sys.argv[:]
     old_profile = os.environ.get("RIXSUN_PROFILE")
+    old_brain_model = os.environ.get("RIXSUN_OLLAMA_MODEL")
     os.environ["RIXSUN_PROFILE"] = profile
+    os.environ["RIXSUN_OLLAMA_MODEL"] = brain_model
     if str(CONTENT_DIR) not in sys.path:
         sys.path.insert(0, str(CONTENT_DIR))
     sys.argv = [str(script), str(project), topic]
@@ -74,12 +76,16 @@ def _run_naskah(project, topic, profile, callback):
             os.environ.pop("RIXSUN_PROFILE", None)
         else:
             os.environ["RIXSUN_PROFILE"] = old_profile
+        if old_brain_model is None:
+            os.environ.pop("RIXSUN_OLLAMA_MODEL", None)
+        else:
+            os.environ["RIXSUN_OLLAMA_MODEL"] = old_brain_model
 
 
 def _seconds(path):
     result = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-        check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True, errors="replace",
     )
     return float(result.stdout.strip())
 
@@ -267,6 +273,9 @@ def _run_assembly(project, callback):
     try:
         _emit("[4/4] Merakit MP4 vertikal dengan subtitle, narasi, dan musik...", callback)
         runpy.run_path(str(script), run_name="__main__")
+    except SystemExit as exc:
+        if exc.code not in (None, 0):
+            raise RuntimeError(str(exc.code)) from exc
     finally:
         sys.argv = old_argv
         if old_font is None:
@@ -278,6 +287,7 @@ def _run_assembly(project, callback):
 def run_pipeline(topic, output_root, settings=None, callback=None):
     settings = settings or {}
     profile = settings.get("profile", "lite")
+    brain_model = settings.get("brain_model", "gemma3:12b" if profile == "standard" else "gemma3:4b")
     safe = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', " ", topic).strip()[:60] or "Konten"
     project = Path(output_root).expanduser() / safe
     project.mkdir(parents=True, exist_ok=True)
@@ -289,9 +299,9 @@ def run_pipeline(topic, output_root, settings=None, callback=None):
         _emit(message, callback)
 
     logged(f"Konten otomatis: {topic}")
-    logged(f"Profil: {profile}; folder: {project}")
+    logged(f"Profil gambar: {profile}; model teks: {brain_model}; folder: {project}")
     if not (project / "naskah.json").exists():
-        _run_naskah(project, topic, profile, logged)
+        _run_naskah(project, topic, profile, brain_model, logged)
     else:
         logged("Naskah sudah ada, dipakai kembali.")
     if not (project / "suara" / "narasi.wav").exists():

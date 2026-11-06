@@ -30,7 +30,7 @@ TMP = f"{P}/_rakit"; os.makedirs(TMP, exist_ok=True)
 
 
 def sh(cmd):
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
     if r.returncode:
         sys.exit(f"ffmpeg gagal:\n{' '.join(cmd)}\n{r.stderr[-1500:]}")
     return r
@@ -212,7 +212,7 @@ def audio(total):
     sh(["ffmpeg", "-v", "error", "-y", "-i", f"{P}/suara/narasi.wav", "-i", musik, "-filter_complex", fc,
         "-map", "[out]", "-t", f"{total:.3f}", "-ar", "48000", mix])
     r = subprocess.run(["ffmpeg", "-hide_banner", "-i", mix, "-af", "loudnorm=I=-14:TP=-1.5:LRA=9:print_format=json",
-                        "-f", "null", "-"], capture_output=True, text=True)
+                        "-f", "null", "-"], capture_output=True, text=True, errors="replace")
     m = json.loads(r.stderr[r.stderr.rfind("{"):r.stderr.rfind("}") + 1])
     final = f"{TMP}/audio.wav"
     sh(["ffmpeg", "-v", "error", "-y", "-i", mix, "-af",

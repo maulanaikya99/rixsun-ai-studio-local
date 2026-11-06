@@ -13,8 +13,10 @@ Pemasang memakai WinGet dan memasang aplikasi untuk akun Windows yang sedang dig
 
 ## Profil perangkat
 
-1. **Standar: GPU NVIDIA RTX dengan VRAM 12 GB atau lebih.** Profil ini direkomendasikan. Gemma 3 12B menulis naskah, sedangkan Stable Diffusion XL membuat gambar adegan dengan detail lebih baik. RAM 32 GB disarankan.
-2. **Ringan: GPU NVIDIA dengan VRAM di bawah 12 GB, grafis terintegrasi, atau CPU.** Gemma 3 4B dan SDXL Turbo memakai pengaturan yang lebih ringan. Gambar lebih lambat dan kurang detail, terutama pada CPU. RAM 16 GB merupakan batas minimum praktis.
+1. **Standar: GPU NVIDIA RTX dengan VRAM 12 GB atau lebih.** Profil ini memakai Stable Diffusion XL untuk gambar yang lebih detail dan memilih Gemma 3 12B sebagai model teks awal. RAM 32 GB disarankan.
+2. **Ringan: GPU NVIDIA dengan VRAM di bawah 12 GB, grafis terintegrasi, atau CPU.** Profil ini memakai SDXL Turbo dengan pengaturan gambar yang lebih ringan dan memilih Gemma 3 4B sebagai model teks awal. Gambar lebih lambat dan kurang detail, terutama pada CPU. RAM 16 GB merupakan batas minimum praktis.
+
+Model teks dapat dipilih terpisah di **Pengaturan → Otak AI**. Gemma 3 12B berukuran sekitar 8,2 GB untuk diunduh dan dapat berjalan lambat pada GPU 6 GB. Mengubah model teks tidak mengubah profil gambar.
 
 Kedua profil membuat video dari gambar dengan gerak kamera, narasi, takarir, dan musik. Edisi Windows ini belum membuat klip video AI LTX. Untuk itu, pasang [LTX Desktop](https://github.com/Lightricks/LTX-Desktop/releases/latest) secara terpisah. Pembuatan LTX lokal memerlukan GPU NVIDIA dengan VRAM minimal 24 GB dan RAM 32 GB.
 

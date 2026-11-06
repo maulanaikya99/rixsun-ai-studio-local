@@ -116,6 +116,7 @@ $appData = Join-Path $env:APPDATA 'RIXSUN AI Studio'
 New-Item -ItemType Directory -Force -Path $appData, (Join-Path $env:USERPROFILE 'Videos\RIXSUN AI Studio') | Out-Null
 $config = @{
     profile = $profile
+    brain_model = $model
     output_root = (Join-Path $env:USERPROFILE 'Videos\RIXSUN AI Studio')
     tts_backend = 'sapi'
     tts_model = 'omnivoice'

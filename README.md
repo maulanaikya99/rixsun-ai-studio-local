@@ -29,8 +29,10 @@ The macOS DMG is for Apple silicon Macs. Windows users can install the separate 
 
 Choose one of two setup profiles:
 
-1. **Standard: NVIDIA RTX with 12 GB+ VRAM (recommended):** Gemma 3 12B and Stable Diffusion XL. A PC with 32 GB system RAM is recommended. Local LTX video generation needs an NVIDIA GPU with 24 GB+ VRAM and 32 GB system RAM.
-2. **Lite: NVIDIA GPU with under 12 GB VRAM, integrated graphics, or CPU:** Gemma 3 4B and SDXL Turbo use lighter settings. A PC with 16 GB system RAM is the practical minimum. Image generation is slower and has less detail. Automatic videos use pan/zoom motion.
+1. **Standard: NVIDIA RTX with 12 GB+ VRAM (recommended):** Stable Diffusion XL makes more detailed images. Gemma 3 12B is the initial text model. A PC with 32 GB system RAM is recommended.
+2. **Lite: NVIDIA GPU with under 12 GB VRAM, integrated graphics, or CPU:** SDXL Turbo uses lighter image settings. Gemma 3 4B is the initial text model. A PC with 16 GB system RAM is the practical minimum. Image generation is slower and has less detail. Automatic videos use pan/zoom motion.
+
+Choose **Gemma 3 4B** or **Gemma 3 12B** independently under **Settings → Otak AI**. The 12B model download is about 8.2 GB and may run slowly on a GPU with 6 GB VRAM. Changing the text model does not change the image profile.
 
 The Windows edition creates scripts, narration, still images, subtitles, music, and MP4 videos. It uses Ollama for local text generation and PyTorch for images. Local LTX scene generation is not included; use [LTX Desktop](https://github.com/Lightricks/LTX-Desktop/releases/latest) separately when the PC has a supported GPU. See [windows/README.md](windows/README.md) for requirements, setup, and voice options.
 

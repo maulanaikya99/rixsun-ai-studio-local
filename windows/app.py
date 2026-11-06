@@ -20,13 +20,14 @@ from windows.pipeline import detect_vram_gb, generate_single_image, run_pipeline
 APPDATA = Path(os.environ.get("APPDATA", Path.home())) / "RIXSUN AI Studio"
 CONFIG_PATH = APPDATA / "config.json"
 DEFAULT_OUTPUT = Path.home() / "Videos" / "RIXSUN AI Studio"
+BRAIN_MODELS = {"gemma3:4b", "gemma3:12b"}
 
 
 def load_config():
     try:
         return json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
-        return {"profile": "lite", "output_root": str(DEFAULT_OUTPUT), "tts_backend": "sapi"}
+        return {"profile": "lite", "brain_model": "gemma3:4b", "output_root": str(DEFAULT_OUTPUT), "tts_backend": "sapi"}
 
 
 def save_config(config):
@@ -50,8 +51,15 @@ class StudioApp(tk.Tk):
             profile = "lite"
             self.profile_adjusted = True
         self.config_data["profile"] = profile
+        brain_model = self.config_data.get("brain_model")
+        if brain_model not in BRAIN_MODELS:
+            brain_model = "gemma3:12b" if profile == "standard" else "gemma3:4b"
+        self.config_data["brain_model"] = brain_model
         self.vram = vram
         self.profile = tk.StringVar(value=profile)
+        self.brain_model = tk.StringVar(value=brain_model)
+        self.brain_loading = False
+        self.brain_radios = []
         self.topic = tk.StringVar()
         self.output_root = tk.StringVar(value=self.config_data.get("output_root", str(DEFAULT_OUTPUT)))
         self.voice_profile = tk.StringVar(value=self.config_data.get("voice_profile", ""))
@@ -74,6 +82,7 @@ class StudioApp(tk.Tk):
             self.config_data["tts_backend"] = "sapi"
             self._save()
             self._append("VoiceStudio belum memiliki ID profil. Suara Windows lokal dipilih supaya Anda bisa langsung mulai.")
+        self.after(500, self._ensure_brain_model)
 
     def _build(self, vram):
         self.configure(background="#10121d")
@@ -134,9 +143,10 @@ class StudioApp(tk.Tk):
         )
         sidebar_bottom = ttk.Frame(sidebar, style="Sidebar.TFrame")
         ttk.Label(sidebar_bottom, text="OTAK AI", style="SidebarMuted.TLabel", font=("Segoe UI", 8, "bold")).pack(anchor="w")
-        brain_name = "Gemma 3 12B" if self.profile.get() == "standard" else "Gemma 3 4B"
-        self.brain_label = ttk.Label(sidebar_bottom, text=brain_name, style="Sidebar.TLabel", font=("Segoe UI", 10, "bold"))
+        brain_name = "Gemma 3 12B" if self.brain_model.get() == "gemma3:12b" else "Gemma 3 4B"
+        self.brain_label = ttk.Label(sidebar_bottom, text=brain_name, style="Sidebar.TLabel", font=("Segoe UI", 10, "bold"), cursor="hand2")
         self.brain_label.pack(anchor="w", pady=(2, 2))
+        self.brain_label.bind("<Button-1>", lambda _event: self._show_page("settings"))
         gpu_text = f"GPU NVIDIA · VRAM {vram} GB" if vram else "GPU NVIDIA tidak terdeteksi"
         ttk.Label(sidebar_bottom, text=gpu_text, style="SidebarMuted.TLabel", wraplength=190).pack(anchor="w", pady=(3, 0))
         if 0 < vram < 12:
@@ -303,7 +313,8 @@ class StudioApp(tk.Tk):
         right_x1, right_x2 = left_x2 + gap, x2 - 18
         self._round_card(canvas, left_x1, y + 38, left_x2, y + 108, fill="#291b35", outline="#51425e")
         canvas.create_text(left_x1 + 14, y + 54, text="✦  Video AI", anchor="w", fill="#a795b2", font=("Segoe UI", 10, "bold"))
-        canvas.create_text(left_x1 + 14, y + 82, text="LTX belum tersedia di edisi Windows", anchor="w", fill="#93879d", font=("Segoe UI", 8))
+        ltx_note = f"LTX belum terintegrasi; VRAM {self.vram} GB belum cukup" if self.vram and self.vram < 9 else "LTX belum terintegrasi di edisi Windows"
+        canvas.create_text(left_x1 + 14, y + 82, text=ltx_note, anchor="w", fill="#93879d", font=("Segoe UI", 8))
         self._round_card(canvas, right_x1, y + 38, right_x2, y + 108, fill="#4d2145", outline="#ff3c78")
         canvas.create_text(right_x1 + 14, y + 54, text="◌  Cepat", anchor="w", fill="#ffffff", font=("Segoe UI", 10, "bold"))
         canvas.create_text(right_x1 + 14, y + 82, text="Gambar + zoom pelan · durasi bergantung GPU", anchor="w", fill="#d7c4d9", font=("Segoe UI", 8))
@@ -312,7 +323,7 @@ class StudioApp(tk.Tk):
         self._round_card(canvas, x1, y, x2, y + 116, fill="#241631", outline="#5b466b")
         canvas.create_text(x1 + 18, y + 18, text="ALUR KERJA", anchor="w", fill="#b8aac9", font=("Segoe UI", 9, "bold"))
         steps = [
-            ("≡", "Naskah", "Gemma 3 12B" if self.profile.get() == "standard" else "Gemma 3 4B"),
+            ("≡", "Naskah", "Gemma 3 12B" if self.brain_model.get() == "gemma3:12b" else "Gemma 3 4B"),
             ("♫", "Suara", "VoiceStudio" if self.tts_backend.get() == "voicestudio" else "Windows lokal"),
             ("▧", "Gambar", "SDXL" if self.profile.get() == "standard" else "SDXL Turbo"),
             ("▣", "Video", "Gerak kamera"),
@@ -353,13 +364,13 @@ class StudioApp(tk.Tk):
         frame = self.settings_tab
         frame.columnconfigure(0, weight=1)
 
-        profile_card = self._card(frame, "Pilih profil berdasarkan GPU")
+        profile_card = self._card(frame, "Profil gambar berdasarkan GPU")
         ttk.Radiobutton(
             profile_card, text="1. Standar: GPU NVIDIA RTX dengan VRAM 12 GB atau lebih",
             variable=self.profile, value="standard", command=self._profile_changed,
         ).pack(anchor="w", pady=(2, 0))
         ttk.Label(
-            profile_card, text="Gemma 3 12B dan SDXL. RAM 32 GB disarankan.",
+            profile_card, text="SDXL untuk gambar lebih detail. RAM 32 GB disarankan.",
             style="CardBody.TLabel", wraplength=800,
         ).pack(anchor="w", padx=(24, 0), pady=(2, 5))
         ttk.Radiobutton(
@@ -367,11 +378,28 @@ class StudioApp(tk.Tk):
             variable=self.profile, value="lite", command=self._profile_changed,
         ).pack(anchor="w", pady=(5, 0))
         ttk.Label(
-            profile_card, text="Gemma 3 4B dan SDXL Turbo. RAM 16 GB disarankan; pembuatan gambar lebih lambat pada CPU.",
+            profile_card, text="SDXL Turbo dengan penggunaan memori lebih ringan. RAM 16 GB disarankan; gambar lebih lambat pada CPU.",
             style="CardBody.TLabel", wraplength=800,
         ).pack(anchor="w", padx=(24, 0), pady=(2, 5))
         gpu_text = f"GPU NVIDIA terdeteksi: VRAM {self.vram} GB" if self.vram else "GPU NVIDIA tidak terdeteksi. Profil Ringan disarankan."
         ttk.Label(profile_card, text=gpu_text, style="CardBody.TLabel").pack(anchor="w", pady=(5, 0))
+
+        brain_card = self._card(frame, "Otak AI · model teks")
+        brain_options = (
+            ("gemma3:4b", "Gemma 3 4B · unduhan sekitar 3,4 GB"),
+            ("gemma3:12b", "Gemma 3 12B · unduhan sekitar 8,2 GB" + (" · dapat lambat pada GPU 6 GB" if self.vram and self.vram < 12 else "")),
+        )
+        for model, label in brain_options:
+            radio = ttk.Radiobutton(
+                brain_card, text=label, variable=self.brain_model, value=model,
+                command=self._brain_changed,
+            )
+            radio.pack(anchor="w", pady=3)
+            self.brain_radios.append(radio)
+        ttk.Label(
+            brain_card, text="Pilihan ini mengatur model penulis naskah. Profil gambar di atas tetap terpisah.",
+            style="CardBody.TLabel", wraplength=800,
+        ).pack(anchor="w", pady=(5, 0))
 
         output_card = self._card(frame, "Folder hasil")
         output_row = ttk.Frame(output_card, style="Card.TFrame")
@@ -429,32 +457,60 @@ class StudioApp(tk.Tk):
     def _profile_changed(self):
         self.config_data["profile"] = self.profile.get()
         self._save()
-        self.brain_label.configure(text="Gemma 3 12B" if self.profile.get() == "standard" else "Gemma 3 4B")
         self._draw_content()
-        model = "gemma3:12b" if self.profile.get() == "standard" else "gemma3:4b"
+        self._append("Profil gambar tersimpan. Pilihan model teks tetap seperti sebelumnya.")
+
+    def _brain_changed(self):
+        self.config_data["brain_model"] = self.brain_model.get()
+        self._save()
+        self.brain_label.configure(text="Gemma 3 12B" if self.brain_model.get() == "gemma3:12b" else "Gemma 3 4B")
+        self._draw_content()
+        self._ensure_brain_model()
+
+    def _ensure_brain_model(self):
+        if self.brain_loading:
+            return
+        model = self.brain_model.get()
+        self.brain_loading = True
+        self.content_button.configure(state="disabled")
+        for radio in self.brain_radios:
+            radio.configure(state="disabled")
+        self._append(f"Memeriksa model {model}...")
 
         def ensure_model():
-            executable = shutil.which("ollama")
-            if not executable:
-                self.after(0, self._append, "Ollama tidak ditemukan. Jalankan kembali install.cmd.")
-                return
-            listed = subprocess.run([executable, "list"], capture_output=True, text=True)
-            if listed.returncode == 0 and model in listed.stdout:
-                self.after(0, self._append, f"Model {model} sudah tersedia.")
-                return
-            self.after(0, self._append, f"Mengunduh model {model} untuk profil ini...")
-            pulled = subprocess.run([executable, "pull", model], capture_output=True, text=True)
-            if pulled.returncode == 0:
-                self.after(0, self._append, f"Model {model} siap digunakan.")
-            else:
-                detail = (pulled.stderr or pulled.stdout).strip()[-400:]
-                self.after(0, self._append, f"Gagal mengunduh {model}: {detail}")
+            try:
+                executable = shutil.which("ollama")
+                if not executable:
+                    self.after(0, self._brain_model_ready, "Ollama tidak ditemukan. Jalankan kembali install.cmd.")
+                    return
+                listed = subprocess.run([executable, "list"], capture_output=True, text=True, errors="replace")
+                if listed.returncode == 0 and model in listed.stdout:
+                    self.after(0, self._brain_model_ready, f"Model {model} siap digunakan.")
+                    return
+                note = "Gemma 3 12B berukuran sekitar 8,2 GB." if model == "gemma3:12b" else "Gemma 3 4B berukuran sekitar 3,4 GB."
+                self.after(0, self._append, f"Mengunduh {model}. {note}")
+                pulled = subprocess.run([executable, "pull", model], capture_output=True, text=True, errors="replace")
+                if pulled.returncode == 0:
+                    self.after(0, self._brain_model_ready, f"Model {model} siap digunakan.")
+                else:
+                    detail = (pulled.stderr or pulled.stdout).strip()[-400:]
+                    self.after(0, self._brain_model_ready, f"Gagal mengunduh {model}: {detail}")
+            except (OSError, subprocess.SubprocessError) as exc:
+                self.after(0, self._brain_model_ready, f"Gagal memeriksa atau mengunduh {model}: {exc}")
 
         threading.Thread(target=ensure_model, daemon=True).start()
+
+    def _brain_model_ready(self, message):
+        self.brain_loading = False
+        for radio in self.brain_radios:
+            radio.configure(state="disabled" if self.busy else "normal")
+        self.content_button.configure(state="disabled" if self.busy else "normal")
+        self._append(message)
 
     def _save(self):
         self.config_data.update({
             "profile": self.profile.get(),
+            "brain_model": self.brain_model.get(),
             "output_root": self.output_root.get().strip(),
             "tts_backend": self.tts_backend.get(),
             "voice_profile": self.voice_profile.get().strip(),
@@ -492,6 +548,9 @@ class StudioApp(tk.Tk):
         if not topic:
             messagebox.showinfo("Topik belum diisi", "Isi topik video dulu.")
             return
+        if self.brain_loading:
+            messagebox.showinfo("Model sedang disiapkan", "Tunggu sampai pemeriksaan atau unduhan model selesai.")
+            return
         if self.busy:
             return
         if self.tts_backend.get() == "voicestudio" and self.voice_profile.get().strip().casefold() in ("", "omnivoice"):
@@ -513,6 +572,8 @@ class StudioApp(tk.Tk):
     def _start_worker(self, kind, value):
         self.busy = True
         self.content_button.configure(state="disabled")
+        for radio in self.brain_radios:
+            radio.configure(state="disabled")
         self.status.set("Proses berjalan…")
         config = dict(self.config_data)
         output_root = self.output_root.get()
@@ -538,7 +599,9 @@ class StudioApp(tk.Tk):
 
     def _finished(self):
         self.busy = False
-        self.content_button.configure(state="normal")
+        self.content_button.configure(state="disabled" if self.brain_loading else "normal")
+        for radio in self.brain_radios:
+            radio.configure(state="disabled" if self.brain_loading else "normal")
 
 
 def main():

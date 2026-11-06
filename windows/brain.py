@@ -6,7 +6,7 @@ import urllib.request
 
 PILIHAN = {
     "gemma": "Gemma 3 12B via Ollama",
-    "qwen": "Gemma 3 4B via Ollama (lite profile)",
+    "qwen": "Gemma 3 4B via Ollama",
 }
 
 
@@ -14,8 +14,11 @@ class Otak:
     def __init__(self, nama=None, tugas="naskah"):
         profile = os.environ.get("RIXSUN_PROFILE", "lite")
         default = "gemma" if profile == "standard" else "qwen"
+        selected_model = os.environ.get("RIXSUN_OLLAMA_MODEL")
+        if nama is None and selected_model in ("gemma3:4b", "gemma3:12b"):
+            default = "gemma" if selected_model == "gemma3:12b" else "qwen"
         self.nama = nama or os.environ.get("RIXSUN_BRAIN", default)
-        self.model = os.environ.get("RIXSUN_OLLAMA_MODEL", "gemma3:12b" if self.nama == "gemma" else "gemma3:4b")
+        self.model = selected_model or ("gemma3:12b" if self.nama == "gemma" else "gemma3:4b")
         self.base_url = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
 
     def tanya(self, isi, max_tokens=1000, temp=0.0):
